@@ -10,9 +10,12 @@ import GeojsViewer from 'girder_plugins/large_image/views/imageViewerWidget/geoj
 import SlicerPanelGroup from 'girder_plugins/slicer_cli_web/views/PanelGroup';
 import AnnotationModel from 'girder_plugins/large_image/models/AnnotationModel';
 import AnnotationCollection from 'girder_plugins/large_image/collections/AnnotationCollection';
+import OverlayModel from 'girder_plugins/large_image/models/OverlayModel';
+import OverlayCollection from 'girder_plugins/large_image/collections/OverlayCollection';
 
 import AnnotationPopover from '../popover/AnnotationPopover';
 import AnnotationSelector from '../../panels/AnnotationSelector';
+import OverlaySelector from '../../panels/OverlaySelector';
 import ZoomWidget from '../../panels/ZoomWidget';
 import DrawWidget from '../../panels/DrawWidget';
 import router from '../../router';
@@ -39,6 +42,7 @@ var ImageView = View.extend({
         events.trigger('h:imageOpened', null);
         this.listenTo(events, 'query:image', this.openImage);
         this.annotations = new AnnotationCollection();
+        this.overlays = new OverlayCollection();
 
         this.controlPanel = new SlicerPanelGroup({
             parentView: this
@@ -59,6 +63,13 @@ var ImageView = View.extend({
             this.$('.s-jobs-panel .s-panel-controls .icon-down-open').click();
             events.trigger('g:alert', {type: 'success', text: 'Analysis job submitted.'});
         });
+
+        this.overlaySelector = new OverlaySelector({
+            parentView: this,
+            collection: this.overlays,
+            image: this.model
+        });
+
         this.listenTo(events, 'h:select-region', this.showRegion);
         this.listenTo(this.annotationSelector.collection, 'add update change:displayed', this.toggleAnnotation);
         this.listenTo(this.annotationSelector, 'h:toggleLabels', this.toggleLabels);
@@ -67,6 +78,15 @@ var ImageView = View.extend({
         this.listenTo(this.annotationSelector, 'h:deleteAnnotation', this._deleteAnnotation);
         this.listenTo(this.annotationSelector, 'h:annotationOpacity', this._setAnnotationOpacity);
         this.listenTo(this, 'h:highlightAnnotation', this._highlightAnnotation);
+
+        this.listenTo(this.overlaySelector, 'h:addOverlay', this._addOverlay);
+        this.listenTo(this.overlaySelector, 'h:editOverlay', this._editOverlay);
+        this.listenTo(this.overlaySelector, 'h:removeOverlay', this._removeOverlay);
+        this.listenTo(this.overlaySelector, 'h:overlaysOpacity', this._setOverlaysOpacity);
+        this.listenTo(this.overlaySelector, 'h:overlayOpacity', this._setOverlayOpacity);
+        this.listenTo(this.overlaySelector, 'h:overlayDisplayed', this._setOverlayDisplayed);
+        this.listenTo(this.overlaySelector, 'h:moveOverlayUp', this._moveOverlayUp);
+        this.listenTo(this.overlaySelector, 'h:moveOverlayDown', this._moveOverlayDown);
 
         this.listenTo(events, 's:widgetChanged:region', this.widgetRegion);
         this.listenTo(events, 'g:login g:logout.success g:logout.error', () => {
@@ -133,6 +153,7 @@ var ImageView = View.extend({
 
                     // show the right side control container
                     this.$('#h-annotation-selector-container').removeClass('hidden');
+                    this.$('#h-overlay-selector-container').removeClass('hidden');
 
                     this.zoomWidget
                         .setViewer(this.viewerWidget)
@@ -141,6 +162,10 @@ var ImageView = View.extend({
                     this.annotationSelector
                         .setViewer(this.viewerWidget)
                         .setElement('.h-annotation-selector').render();
+
+                    this.overlaySelector
+                        .setViewer(this.viewerWidget)
+                        .setElement('.h-overlay-selector').render();
 
                     if (this.drawWidget) {
                         this.$('.h-draw-widget').removeClass('hidden');
@@ -155,6 +180,12 @@ var ImageView = View.extend({
             this.annotationSelector
                 .setViewer(null)
                 .setElement('.h-annotation-selector').render();
+
+            this.overlaySelector.setItem(this.model);
+
+            this.overlaySelector
+                .setViewer(null)
+                .setElement('.h-overlay-selector').render();
 
             if (this.drawWidget) {
                 this.$('.h-draw-widget').removeClass('hidden');
@@ -378,6 +409,15 @@ var ImageView = View.extend({
         this.viewerWidget.highlightAnnotation(annotation, element);
     },
 
+    _redrawOverlay(overlay) {
+        if (!this.viewerWidget || !overlay.get('displayed')) {
+            // We may need a way to queue overlay draws while viewer
+            // initializes, but for now ignore them.
+            return;
+        }
+        this.viewerWidget.redrawOverlay(overlay.get('index'));
+    },
+
     widgetRegion(model) {
         var value = model.get('value');
         this._displayedRegion = value.slice();
@@ -564,6 +604,38 @@ var ImageView = View.extend({
 
     _setAnnotationOpacity(opacity) {
         this.viewerWidget.setGlobalAnnotationOpacity(opacity);
+    },
+
+    _addOverlay(overlay) {
+        this.viewerWidget.addOverlay(overlay);
+    },
+
+    _editOverlay(overlay) {
+        this.viewerWidget.updateOverlay(overlay);
+    },
+
+    _removeOverlay(index) {
+        this.viewerWidget.removeOverlay(index);
+    },
+
+    _setOverlaysOpacity(opacity) {
+        this.viewerWidget.setGlobalOverlayOpacity(opacity);
+    },
+
+    _setOverlayOpacity(evt) {
+        this.viewerWidget.setOverlayOpacity(evt.index, evt.opacity);
+    },
+
+    _setOverlayDisplayed(evt) {
+        this.viewerWidget.setOverlayVisibility(evt.index, evt.displayed);
+    },
+
+    _moveOverlayUp(index) {
+        this.viewerWidget.moveOverlayUp(index);
+    },
+
+    _moveOverlayDown(index) {
+        this.viewerWidget.moveOverlayDown(index);
     }
 });
 

@@ -1,0 +1,41 @@
+.modal-dialog(role='document')
+  .modal-content
+    form.modal-form(role='form')
+      .modal-header
+        button.close(type='button', data-dismiss='modal', aria-label='Close')
+          span(aria-hidden='true') &times;
+        h4.modal-title #{title}
+      .modal-body
+        label(for='h-overlay-item') Overlay
+        .g-hierarchy-root-container.form-group
+        .g-hierarchy-widget-container.g-wait-for-root.form-group.hidden
+
+        .help-block.g-wait-for-root.hidden
+          = help
+
+        .g-selected-model.g-wait-for-root.form-group.hidden
+          label.control-label(for='g-selected-model') Selected #{selectItem ? 'item' : 'folder'}
+          input#g-selected-model.form-control(type='text', readonly)
+
+        .form-group
+          .checkbox.h-overlay-toggle
+            label#h-overlay-label-label(for='h-overlay-label')
+              input#h-overlay-label(type='checkbox', checked=label)
+              | Label
+        .form-group
+          label(for='h-overlay-name') Name
+          input#h-overlay-name.input-sm.form-control(
+            type='text', placeholder='Enter a name for the overlay', value=name)
+        .form-group
+          label(for='h-overlay-description') Description
+          textarea#h-overlay-description.form-control.input-sm(
+            rows='6', placeholder='Enter an optional description')
+            | #{description}
+        .form-group
+          label#h-overlay-opacity-label(for='h-overlay-opacity')=`Opacity ${(opacity * 100).toFixed()}%`
+          input#h-overlay-opacity(
+              type="range", min="0", max="1", step="0.01", value=opacity)
+        .g-validation-failed-message.hidden
+      .modal-footer
+        button.btn.btn-small.btn-default.h-cancel(type='button', data-dismiss='modal') Cancel
+        button.btn.btn-small.btn-primary.h-submit(type='submit') Save
