@@ -48,7 +48,7 @@ var OverlaySelector = Panel.extend({
         this.listenTo(this.collection, 'change:displayed', this._onChangeOverlayDisplayed);
         this.listenTo(this.collection, 'change:overlayItemId', this._onChangeOverlayItem);
         this.listenTo(this.collection, 'sync reset change:loading', this.render);
-        this.listenTo(this.collection, 'change:overlay', this._saveOverlay);
+        this.listenTo(this.collection, 'change:name', this._onChangeOverlayName);
 
         this.listenTo(eventStream, 'g:event.job_status', _.debounce(this._onJobUpdate, 500));
         this.listenTo(eventStream, 'g:eventStream.start', this._refreshOverlays);
@@ -79,6 +79,10 @@ var OverlaySelector = Panel.extend({
             displayed: value
         });
         this.render();
+    },
+
+    _onChangeOverlayName(overlay, value, options) {
+        this.$('.h-overlay[data-id=' + overlay.id + '] > .h-overlay-name').attr('title', value).text(value);
     },
 
     render() {
@@ -297,15 +301,6 @@ var OverlaySelector = Panel.extend({
                 });
             }
         );
-    },
-
-    _saveOverlay(overlay) {
-        if (!this._saving && overlay === this._activeOverlay && !overlay.get('loading')) {
-            this._saving = true;
-            overlay.save().always(() => {
-                this._saving = false;
-            });
-        }
     },
 
     _writeAccess(overlay) {
