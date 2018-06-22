@@ -1,0 +1,11 @@
+block content
+  if loading
+    #h-histogram-placeholder.h-histogram
+      span#h-histogram-progress.icon-spin3.animate-spin
+  else
+    svg#h-histogram.h-histogram(viewBox="0 0 " + hist.length + " " + height,
+                                preserveAspectRatio="none")
+      each value, index in hist
+        rect(id=`h-histogram-bin${index}`, x=index, y=height - value,
+                                           width=1, height=value)
+  #h-histogram-slider-container.h-histogram

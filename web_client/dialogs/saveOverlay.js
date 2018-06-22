@@ -1,10 +1,14 @@
 import _ from 'underscore';
 
-import HierarchyWidget from 'girder/views/widgets/HierarchyWidget';
-import RootSelectorWidget from 'girder/views/widgets/RootSelectorWidget';
 import View from 'girder/views/View';
 
+import HierarchyWidget from 'girder/views/widgets/HierarchyWidget';
+import RootSelectorWidget from 'girder/views/widgets/RootSelectorWidget';
+
 import BrowserWidget from 'girder/views/widgets/BrowserWidget';
+
+import HistogramModel from 'girder_plugins/large_image/models/HistogramModel';
+import HistogramWidget from './histogramWidget';
 
 import saveOverlay from '../templates/dialogs/saveOverlay.pug';
 
@@ -16,7 +20,21 @@ var SaveOverlay = View.extend({
     events: {
         'click .h-cancel': 'cancel',
         'submit form': 'save',
-        'input #h-overlay-opacity': '_changeOpacity'
+        'input #h-overlay-opacity': function(e) {
+            var opacity = this.$('#h-overlay-opacity').val();
+            var text = `Overlay opacity ${(opacity * 100).toFixed()}%`;
+            this.$('#h-overlay-opacity-label').text(text);
+            this.overlay.set('opacity', opacity);
+        },
+        'input #h-overlay-label': function(e) {
+            this.overlay.set('label', $(e.target).is(':checked'));
+        },
+        'input #h-overlay-invert-label': function(e) {
+            this.overlay.set('invertLabel', $(e.target).is(':checked'));
+        },
+        'input #h-overlay-flatten-label': function(e) {
+            this.overlay.set('flattenLabel', $(e.target).is(':checked'));
+        },
     },
 
     initialize(settings = {}) {
@@ -36,35 +54,43 @@ var SaveOverlay = View.extend({
             this.root = evt.root;
             this._renderHierarchyView();
         });
+    },
 
+    show: function(params, options) {
+        this.overlay = params.overlay;
+        this._overlay = params.overlay ? params.overlay.clone() : params.overlay;
+        this.folder = params.folder;
+        this.overlayItem = params.overlayItem;
+        this.options = options;
+
+        this.setElement('#g-dialog-container').render();
     },
 
     render() {
         this.root = this.folder;
         this._rootSelectionView.selected = this.folder;
-        // FIXME: move me
-        this._opacity = this.overlay.get('opacity') || 1.0;
         this.$el.html(
             saveOverlay({
                 title: this.options.title,
                 name: this.overlay.get('name'),
                 description: this.overlay.get('description'),
                 label: this.overlay.get('label'),
+                invertLabel: this.overlay.get('invertLabel'),
+                flattenLabel: this.overlay.get('flattenLabel'),
                 opacity: this.overlay.get('opacity'),
                 help: this.helpText,
                 preview: this.showPreview,
-                selectItem: this.selectItem
+                selectItem: this.selectItem,
             })
         ).girderModal(this);
+        this._renderHistogram();
         this._renderRootSelection();
         this._resetSelection(this.overlayItem);
         return this;
     },
 
     cancel(evt) {
-        if (this.overlay) {
-            this.overlay.set('opacity', this._opacity);
-        }
+        this.overlay.set(this._overlay.attributes);
         evt.preventDefault();
         this.$el.modal('hide');
     },
@@ -83,16 +109,36 @@ var SaveOverlay = View.extend({
 
         this._validate();
 
-    },
-
-    _changeOpacity() {
-        var opacity = this.$('#h-overlay-opacity').val();
-        this.$('#h-overlay-opacity-label').text(`Overlay opacity ${(opacity * 100).toFixed()}%`);
-        this.overlay.set('opacity', opacity);
+        this._overlay = this.overlay.clone();
     },
 
     selectedModel: function () {
         return this._selected;
+    },
+
+    _renderHistogram() {
+        if (this._histogramView) {
+            this.stopListening(this._histogramView);
+            this._histogramView.off();
+            this.$('.h-histogram-widget-container').empty();
+        }
+        if (!this.root) {
+            return;
+        }
+        this._histogramView = new HistogramWidget({
+            el: this.$('.h-histogram-widget-container'),
+            model: new HistogramModel({
+                _id: this.overlayItem.id,
+                fileId: this.overlayItem.get('largeImage').originalId,
+                label: this.overlay.get('label') ? 1 : 0
+            }),
+            parentView: this,
+            threshold: this.overlay.get('threshold')
+        }).render();
+
+        this.listenTo(this._histogramView, 'h:range', function (evt) {
+            this.overlay.set('threshold', evt.range);
+        });
     },
 
     _renderRootSelection: function () {
@@ -133,6 +179,7 @@ var SaveOverlay = View.extend({
         if (this._selected) {
             this.$('#g-selected-model').val(this._selected.get('name'));
         }
+        this._histogramView.getHistogram();
     },
 
     _selectItem: function (item) {
@@ -162,35 +209,33 @@ var SaveOverlay = View.extend({
         let selectedValidation = this.validate(selectedModel);
 
         let invalidSelectedModel = null;
-        $.when(
-            selectedValidation
-                .catch((failMessage) => {
-                    // selected-model is invalid
-                    invalidSelectedModel = failMessage;
-                    return undefined;
-                })
-        )
-            .done(() => {
-                // Reset any previous error states
-                this.$('.g-selected-model').removeClass('has-error');
-                this.$('.g-validation-failed-message').addClass('hidden').html('');
+        $.when(selectedValidation.catch((failMessage) => {
+            // selected-model is invalid
+            invalidSelectedModel = failMessage;
+            return undefined;
+        })).done(() => {
+            // Reset any previous error states
+            this.$('.g-selected-model').removeClass('has-error');
+            this.$('.g-validation-failed-message').addClass('hidden').html('');
 
-                if (invalidSelectedModel) {
-                    this.$('.g-selected-model').addClass('has-error');
-                    this.$('.g-validation-failed-message').removeClass('hidden').text(invalidSelectedModel);
-                } else {
-                    this.root = this._hierarchyView.parentModel;
-                    this.overlay.set({
-                        name: this.$('#h-overlay-name').val(),
-                        description: this.$('#h-overlay-description').val(),
-                        opacity: this.$('#h-overlay-opacity').val(),
-                        label: this.$('#h-overlay-label').prop('checked'),
-                        overlayItemId: selectedModel.id
-                    });
-                    this.trigger('g:submit');
-                    this.$el.modal('hide');
-                }
+            if (invalidSelectedModel) {
+                this.$('.g-selected-model').addClass('has-error');
+                this.$('.g-validation-failed-message').removeClass('hidden').text(invalidSelectedModel);
+                return;
+            }
+            this.root = this._hierarchyView.parentModel;
+            this.overlay.set({
+                name: this.$('#h-overlay-name').val(),
+                description: this.$('#h-overlay-description').val(),
+                opacity: this.$('#h-overlay-opacity').val(),
+                label: this.$('#h-overlay-label').prop('checked'),
+                invertLabel: this.$('#h-overlay-invert-label').prop('checked'),
+                flattenLabel: this.$('#h-overlay-flatten-label').prop('checked'),
+                overlayItemId: selectedModel.id
             });
+            this.trigger('g:submit');
+            this.$el.modal('hide');
+        });
     }
 });
 
@@ -205,14 +250,7 @@ var dialog = new SaveOverlay({
 function show(params, options) {
     _.defaults(options, {'title': 'Create overlay'});
 
-    dialog.overlay = params.overlay;
-
-    dialog.folder = params.folder;
-    dialog.overlayItem = params.overlayItem;
-
-    dialog.options = options;
-
-    dialog.setElement('#g-dialog-container').render();
+    dialog.show(params, options);
 
     return dialog;
 }

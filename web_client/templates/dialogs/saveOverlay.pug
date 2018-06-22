@@ -18,10 +18,15 @@
           input#g-selected-model.form-control(type='text', readonly)
 
         .form-group
+          label(for='h-overlay-label') Label
+            input#h-overlay-label(type='checkbox', checked=label)
           .checkbox.h-overlay-toggle
-            label#h-overlay-label-label(for='h-overlay-label')
-              input#h-overlay-label(type='checkbox', checked=label)
-              | Label
+            label(for='h-overlay-invert-label')
+              input#h-overlay-invert-label(type='checkbox', checked=invertLabel)
+              | Invert
+            label(for='h-overlay-flatten-label')
+              input#h-overlay-flatten-label(type='checkbox', checked=flattenLabel)
+              | Flatten
         .form-group
           label(for='h-overlay-name') Name
           input#h-overlay-name.input-sm.form-control(
@@ -35,6 +40,9 @@
           label#h-overlay-opacity-label(for='h-overlay-opacity')=`Opacity ${(opacity * 100).toFixed()}%`
           input#h-overlay-opacity(
               type="range", min="0", max="1", step="0.01", value=opacity)
+        .form-group
+           label(for='h-histogram') Levels
+           .h-histogram-widget-container
         .g-validation-failed-message.hidden
       .modal-footer
         button.btn.btn-small.btn-default.h-cancel(type='button', data-dismiss='modal') Cancel
