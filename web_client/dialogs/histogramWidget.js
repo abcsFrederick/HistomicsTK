@@ -1,5 +1,6 @@
 import _ from 'underscore';
 
+import eventStream from 'girder/utilities/EventStream';
 import View from 'girder/views/View';
 
 import RangeSliderWidget from './rangeSliderWidget';
@@ -14,13 +15,23 @@ var HistogramWidget = View.extend({
      */
 
     initialize: function (settings) {
+        this.listenTo(eventStream, 'g:event.large_image.finished_histogram_item', () => {
+            this.model.fetch({ignoreError: true});
+        });
         this.listenTo(this.model, 'change', this.render);
         this.threshold = settings.threshold;
         return View.prototype.initialize.apply(this, arguments);
     },
 
     getHistogram: function () {
-        this.model.fetch();
+        this.model.fetch({ignoreError: true}).fail((error) => {
+            this.model.set('loading', true, {silent: true});
+            if (error.status == 404) {
+                this.model.save().fail(() => {
+                    this.model.set('loading', false, {silent: true});
+                });
+            }
+        });
     },
 
     render: function () {
