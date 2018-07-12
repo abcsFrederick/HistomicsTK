@@ -46,7 +46,7 @@ var OverlaySelector = Panel.extend({
         this.listenTo(this.collection, 'update', this._onUpdate);
         this.listenTo(this.collection, 'change:opacity', this._onChangeOverlayOpacity);
         //this.listenTo(this.collection, 'change:threshold', this._onChangeOverlayThreshold);
-        this.listenTo(this.collection, 'change:threshold change:label change:invertLabel change:flattenLabel', this._onChangeOverlay);
+        this.listenTo(this.collection, 'change:threshold change:offset change:label change:invertLabel change:flattenLabel', this._onChangeOverlay);
         this.listenTo(this.collection, 'change:displayed', this._onChangeOverlayDisplayed);
         this.listenTo(this.collection, 'change:overlayItemId', this._onChangeOverlayItem);
         this.listenTo(this.collection, 'sync reset change:loading', this.render);

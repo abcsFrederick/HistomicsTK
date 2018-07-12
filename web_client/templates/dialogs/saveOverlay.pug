@@ -41,8 +41,15 @@
           input#h-overlay-opacity(
               type="range", min="0", max="1", step="0.01", value=opacity)
         .form-group
-           label(for='h-histogram') Levels
-           .h-histogram-widget-container
+          label(for='h-overlay-offset') Offset
+          #h-overlay-offset
+            label(for='h-overlay-offset-x') x
+            input#h-overlay-offset-x.input-sm.form-control(type='number', value=offset.x)
+            label(for='h-overlay-offset-y') y
+            input#h-overlay-offset-y.input-sm.form-control(type='number', value=offset.y)
+        .form-group
+          label(for='h-histogram') Levels
+          .h-histogram-widget-container
         .g-validation-failed-message.hidden
       .modal-footer
         button.btn.btn-small.btn-default.h-cancel(type='button', data-dismiss='modal') Cancel

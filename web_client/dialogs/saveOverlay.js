@@ -26,6 +26,15 @@ var SaveOverlay = View.extend({
             this.$('#h-overlay-opacity-label').text(text);
             this.overlay.set('opacity', opacity);
         },
+        'input #h-overlay-offset-x': function(e) {
+            var offset = this.overlay.get('offset');
+            console.log(e);
+            this.overlay.set('offset', {x: e.target.valueAsNumber, y: offset.y});
+        },
+        'input #h-overlay-offset-y': function(e) {
+            var offset = this.overlay.get('offset');
+            this.overlay.set('offset', {x: offset.x, y: e.target.valueAsNumber});
+        },
         'input #h-overlay-label': function(e) {
             this.overlay.set('label', $(e.target).is(':checked'));
         },
@@ -78,6 +87,7 @@ var SaveOverlay = View.extend({
                 invertLabel: this.overlay.get('invertLabel'),
                 flattenLabel: this.overlay.get('flattenLabel'),
                 opacity: this.overlay.get('opacity'),
+                offset: this.overlay.get('offset'),
                 help: this.helpText,
                 preview: this.showPreview,
                 selectItem: this.selectItem,
@@ -228,6 +238,10 @@ var SaveOverlay = View.extend({
                 name: this.$('#h-overlay-name').val(),
                 description: this.$('#h-overlay-description').val(),
                 opacity: this.$('#h-overlay-opacity').val(),
+                offset: {
+                    x: parseFloat(this.$('#h-overlay-offset-x').val()),
+                    y: parseFloat(this.$('#h-overlay-offset-y').val())
+                },
                 label: this.$('#h-overlay-label').prop('checked'),
                 invertLabel: this.$('#h-overlay-invert-label').prop('checked'),
                 flattenLabel: this.$('#h-overlay-flatten-label').prop('checked'),
