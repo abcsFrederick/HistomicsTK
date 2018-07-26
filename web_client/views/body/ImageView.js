@@ -17,6 +17,7 @@ import AnnotationPopover from '../popover/AnnotationPopover';
 import AnnotationSelector from '../../panels/AnnotationSelector';
 import OverlaySelector from '../../panels/OverlaySelector';
 import ZoomWidget from '../../panels/ZoomWidget';
+import OverlayPropertiesWidget from '../../panels/OverlayPropertiesWidget';
 import DrawWidget from '../../panels/DrawWidget';
 import router from '../../router';
 import events from '../../events';
@@ -50,6 +51,11 @@ var ImageView = View.extend({
         this.zoomWidget = new ZoomWidget({
             parentView: this
         });
+        this.overlaySelector = new OverlaySelector({
+            parentView: this,
+            collection: this.overlays,
+            image: this.model
+        });
         this.annotationSelector = new AnnotationSelector({
             parentView: this,
             collection: this.annotations,
@@ -64,12 +70,6 @@ var ImageView = View.extend({
             events.trigger('g:alert', {type: 'success', text: 'Analysis job submitted.'});
         });
 
-        this.overlaySelector = new OverlaySelector({
-            parentView: this,
-            collection: this.overlays,
-            image: this.model
-        });
-
         this.listenTo(events, 'h:select-region', this.showRegion);
         this.listenTo(this.annotationSelector.collection, 'add update change:displayed', this.toggleAnnotation);
         this.listenTo(this.annotationSelector, 'h:toggleLabels', this.toggleLabels);
@@ -79,12 +79,14 @@ var ImageView = View.extend({
         this.listenTo(this.annotationSelector, 'h:annotationOpacity', this._setAnnotationOpacity);
         this.listenTo(this, 'h:highlightAnnotation', this._highlightAnnotation);
 
-        this.listenTo(this.overlaySelector, 'h:addOverlay', this._addOverlay);
+        this.listenTo(this.overlaySelector.collection, 'add update change:displayed', this.toggleOverlay);
         this.listenTo(this.overlaySelector, 'h:editOverlay', this._editOverlay);
-        this.listenTo(this.overlaySelector, 'h:removeOverlay', this._removeOverlay);
+        this.listenTo(this.overlaySelector, 'h:deleteOverlay', this._deleteOverlay);
         this.listenTo(this.overlaySelector, 'h:overlaysOpacity', this._setOverlaysOpacity);
-        this.listenTo(this.overlaySelector, 'h:overlayOpacity', this._setOverlayOpacity);
-        this.listenTo(this.overlaySelector, 'h:overlayDisplayed', this._setOverlayDisplayed);
+        //this.listenTo(this.overlaySelector, 'h:overlayOpacity', this._setOverlayOpacity);
+        //this.listenTo(this.overlaySelector, 'h:addOverlay', this._addOverlay);
+        //this.listenTo(this.overlaySelector, 'h:removeOverlay', this._removeOverlay);
+        //this.listenTo(this.overlaySelector, 'h:overlayDisplayed', this._setOverlayDisplayed);
         this.listenTo(this.overlaySelector, 'h:moveOverlayUp', this._moveOverlayUp);
         this.listenTo(this.overlaySelector, 'h:moveOverlayDown', this._moveOverlayDown);
 
@@ -99,6 +101,7 @@ var ImageView = View.extend({
         // This can happen when opening a new image while an annotation is
         // being hovered.
         this.mouseResetAnnotation();
+        this._removeOverlayPropertiesWidget();
         this._removeDrawWidget();
 
         if (this.model.id === this._openId) {
@@ -162,13 +165,26 @@ var ImageView = View.extend({
                         .setViewer(this.viewerWidget)
                         .setElement('.h-zoom-widget').render();
 
-                    this.annotationSelector
-                        .setViewer(this.viewerWidget)
-                        .setElement('.h-annotation-selector').render();
-
                     this.overlaySelector
                         .setViewer(this.viewerWidget)
                         .setElement('.h-overlay-selector').render();
+
+                    this.overlaySelector.collection.each((model) => {
+                        if (model.get('displayed')) {
+                            this.viewerWidget.drawOverlay(model);
+                        }
+                    });
+
+                    if (this.overlayPropertiesWidget) {
+                        this.$('.h-overlay-properties-widget').removeClass('hidden');
+                        this.overlayPropertiesWidget
+                            .setViewer(this.viewerWidget)
+                            .setElement('.h-overlay-properties-widget').render();
+                    }
+
+                    this.annotationSelector
+                        .setViewer(this.viewerWidget)
+                        .setElement('.h-annotation-selector').render();
 
                     if (this.drawWidget) {
                         this.$('.h-draw-widget').removeClass('hidden');
@@ -178,17 +194,24 @@ var ImageView = View.extend({
                     }
                 }
             });
-            this.annotationSelector.setItem(this.model);
-
-            this.annotationSelector
-                .setViewer(null)
-                .setElement('.h-annotation-selector').render();
-
             this.overlaySelector.setItem(this.model);
 
             this.overlaySelector
                 .setViewer(null)
                 .setElement('.h-overlay-selector').render();
+
+            if (this.overlayPropertiesWidget) {
+                this.$('.h-overlay-properties-widget').removeClass('hidden');
+                this.overlayPropertiesWidget
+                    .setViewer(null)
+                    .setElement('.h-overlay-properties-widget').render();
+            }
+
+            this.annotationSelector.setItem(this.model);
+
+            this.annotationSelector
+                .setViewer(null)
+                .setElement('.h-annotation-selector').render();
 
             if (this.drawWidget) {
                 this.$('.h-draw-widget').removeClass('hidden');
@@ -414,13 +437,36 @@ var ImageView = View.extend({
         this.viewerWidget.highlightAnnotation(annotation, element);
     },
 
+    toggleOverlay(overlay) {
+        if (!this.viewerWidget) {
+            return;
+        }
+
+        if (overlay.get('displayed')) {
+            /*
+            overlay.set('loading', true);
+            overlay.fetch().then(() => {
+                this.viewerWidget.drawOverlay(overlay);
+                return null;
+            }).always(() => {
+                overlay.unset('loading');
+            });
+             */
+            overlay.set('loading', true);
+            this.viewerWidget.drawOverlay(overlay);
+            overlay.unset('loading');
+        } else {
+            this.viewerWidget.removeOverlay(overlay);
+        }
+    },
+
     _redrawOverlay(overlay) {
         if (!this.viewerWidget || !overlay.get('displayed')) {
             // We may need a way to queue overlay draws while viewer
             // initializes, but for now ignore them.
             return;
         }
-        this.viewerWidget.redrawOverlay(overlay.get('index'));
+        this.viewerWidget.drawOverlay(overlay);
     },
 
     widgetRegion(model) {
@@ -611,17 +657,57 @@ var ImageView = View.extend({
         this.viewerWidget.setGlobalAnnotationOpacity(opacity);
     },
 
+    /*
     _addOverlay(overlay) {
         this.viewerWidget.addOverlay(overlay);
     },
+     */
 
-    _editOverlay(overlay) {
-        this.viewerWidget.updateOverlay(overlay);
+    _removeOverlayPropertiesWidget() {
+        if (this.overlayPropertiesWidget) {
+            this.stopListening(this.overlayPropertiesWidget);
+            this.overlayPropertiesWidget.remove();
+            this.overlayPropertiesWidget = null;
+            $('<div/>').addClass('h-overlay-properties-widget s-panel hidden')
+                .insertAfter(this.$('.h-overlay-selector').first());
+        }
     },
 
+    _editOverlay(model) {
+        this.activeOverlay = model;
+        this._removeOverlayPropertiesWidget();
+        if (model) {
+            this.overlayPropertiesWidget = new OverlayPropertiesWidget({
+                parentView: this,
+                overlay: this.activeOverlay,
+                el: this.$('.h-overlay-properties-widget'),
+                viewer: this.viewerWidget
+            }).render();
+            this.listenTo(this.overlayPropertiesWidget,
+                          'h:redraw', this._redrawOverlay);
+            this.listenTo(this.overlayPropertiesWidget,
+                          'h:overlayOpacity', this._setOverlayOpacity);
+            this.$('.h-overlay-properties-widget').removeClass('hidden');
+        }
+    },
+
+    /*
+    _updateOverlay(model) {
+        this.viewerWidget.updateOverlay(model);
+    },
+     */
+
+    _deleteOverlay(model) {
+        if (this.activeOverlay && this.activeOverlay.id === model.id) {
+            this._removeOverlayPropertiesWidget();
+        }
+    },
+
+    /*
     _removeOverlay(index) {
         this.viewerWidget.removeOverlay(index);
     },
+     */
 
     _setOverlaysOpacity(opacity) {
         this.viewerWidget.setGlobalOverlayOpacity(opacity);
@@ -631,9 +717,11 @@ var ImageView = View.extend({
         this.viewerWidget.setOverlayOpacity(evt.index, evt.opacity);
     },
 
+    /*
     _setOverlayDisplayed(evt) {
         this.viewerWidget.setOverlayVisibility(evt.index, evt.displayed);
     },
+     */
 
     _moveOverlayUp(index) {
         this.viewerWidget.moveOverlayUp(index);

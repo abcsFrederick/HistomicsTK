@@ -6,27 +6,13 @@
           span(aria-hidden='true') &times;
         h4.modal-title #{title}
       .modal-body
-        label(for='h-overlay-item') Overlay
-        .g-hierarchy-root-container.form-group
-        .g-hierarchy-widget-container.g-wait-for-root.form-group.hidden
-
-        .help-block.g-wait-for-root.hidden
-          = help
-
-        .g-selected-model.g-wait-for-root.form-group.hidden
-          label.control-label(for='g-selected-model') Selected #{selectItem ? 'item' : 'folder'}
-          input#g-selected-model.form-control(type='text', readonly)
-
         .form-group
-          label(for='h-overlay-label') Label
-            input#h-overlay-label(type='checkbox', checked=label)
-          .checkbox.h-overlay-toggle
-            label(for='h-overlay-invert-label')
-              input#h-overlay-invert-label(type='checkbox', checked=invertLabel)
-              | Invert
-            label(for='h-overlay-flatten-label')
-              input#h-overlay-flatten-label(type='checkbox', checked=flattenLabel)
-              | Flatten
+          label(for='h-overlay-item') Overlay
+          #h-browser-container.g-browser-widget.hidden
+          input#h-overlay-item.input-sm.form-control(
+            type='text', placeholder='Select an overlay image', readonly)
+          #h-overlay-select.button.btn.btn-default.h-open-image(type='button')
+            | #[span.icon-picture] Select Overlay Image
         .form-group
           label(for='h-overlay-name') Name
           input#h-overlay-name.input-sm.form-control(
@@ -36,20 +22,6 @@
           textarea#h-overlay-description.form-control.input-sm(
             rows='6', placeholder='Enter an optional description')
             | #{description}
-        .form-group
-          label#h-overlay-opacity-label(for='h-overlay-opacity')=`Opacity ${(opacity * 100).toFixed()}%`
-          input#h-overlay-opacity(
-              type="range", min="0", max="1", step="0.01", value=opacity)
-        .form-group
-          label(for='h-overlay-offset') Offset
-          #h-overlay-offset
-            label(for='h-overlay-offset-x') x
-            input#h-overlay-offset-x.input-sm.form-control(type='number', value=offset.x)
-            label(for='h-overlay-offset-y') y
-            input#h-overlay-offset-y.input-sm.form-control(type='number', value=offset.y)
-        .form-group
-          label(for='h-histogram') Levels
-          .h-histogram-widget-container
         .g-validation-failed-message.hidden
       .modal-footer
         button.btn.btn-small.btn-default.h-cancel(type='button', data-dismiss='modal') Cancel

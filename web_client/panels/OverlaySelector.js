@@ -20,10 +20,11 @@ import '../stylesheets/panels/overlaySelector.styl';
  */
 var OverlaySelector = Panel.extend({
     events: _.extend(Panel.prototype.events, {
+        'click .h-overlay-name': 'editOverlay',
         'click .h-toggle-overlay': 'toggleOverlay',
         'click .h-delete-overlay': 'deleteOverlay',
         'click .h-create-overlay': 'createOverlay',
-        'click .h-edit-overlay': 'editOverlay',
+        'click .h-edit-overlay': 'editOverlayMetadata',
         'click .h-move-overlay-up': 'moveOverlayUp',
         'click .h-move-overlay-down': 'moveOverlayDown',
         'click .h-show-all-overlays': 'showAllOverlays',
@@ -44,9 +45,6 @@ var OverlaySelector = Panel.extend({
         this.listenTo(this.collection, 'add', this._onAddOverlay);
         this.listenTo(this.collection, 'remove', this._onRemoveOverlay);
         this.listenTo(this.collection, 'update', this._onUpdate);
-        this.listenTo(this.collection, 'change:opacity', this._onChangeOverlayOpacity);
-        //this.listenTo(this.collection, 'change:threshold', this._onChangeOverlayThreshold);
-        this.listenTo(this.collection, 'change:threshold change:offset change:label change:invertLabel change:flattenLabel', this._onChangeOverlay);
         this.listenTo(this.collection, 'change:displayed', this._onChangeOverlayDisplayed);
         this.listenTo(this.collection, 'change:overlayItemId', this._onChangeOverlayItem);
         this.listenTo(this.collection, 'sync reset change:loading', this.render);
@@ -66,23 +64,6 @@ var OverlaySelector = Panel.extend({
 
     _onUpdate(collection, options) {
         this.render();
-    },
-
-    _onChangeOverlayOpacity(overlay, value, options) {
-        this.trigger('h:overlayOpacity', {
-            index: overlay.get('index'),
-            opacity: value
-        });
-    },
-
-    /*
-    _onChangeOverlayThreshold(overlay, value, options) {
-        this.trigger('h:editOverlay', overlay);
-    },
-     */
-
-    _onChangeOverlay(overlay, value, options) {
-        this.trigger('h:editOverlay', overlay);
     },
 
     _onChangeOverlayDisplayed(overlay, value, options) {
@@ -152,11 +133,13 @@ var OverlaySelector = Panel.extend({
      */
     setViewer(viewer) {
         this.viewer = viewer;
+        /*
         if (this.viewer) {
             this.collection.each((overlay) => {
                 this.viewer.addOverlay(overlay);
             });
         }
+         */
         return this;
     },
 
@@ -193,29 +176,23 @@ var OverlaySelector = Panel.extend({
         }
     },
 
-    editOverlay(evt) {
+    editOverlayMetadata(evt) {
         const id = $(evt.currentTarget).parents('.h-overlay').data('id');
         const model = this.collection.get(id);
 
         // TODO: as promises
         var overlayItem = new ItemModel();
-        overlayItem.set({ _id: model.get('overlayItemId') }).on('g:fetched', function () {
+        overlayItem.set({_id: model.get('overlayItemId')}).fetch().then(() => {
             var folder = new FolderModel();
-            folder.set({ _id: overlayItem.get('folderId') }).on('g:fetched', function () {
-                var params = {
-                    overlay: model,
-                    folder: folder,
-                    overlayItem: overlayItem,
-                };
-                var dialog = showSaveOverlayDialog(params, {title: 'Edit overlay'});
-                this.listenToOnce(
-                    dialog,
-                    'g:submit', () => model.save().done(() => {
-                        this.trigger('h:editOverlay', params.overlay);
-                    })
-                );
-            }, this).fetch();
-        }, this).fetch();
+            folder.set({_id: overlayItem.get('folderId')}).fetch().then(() => {
+                var dialog = showSaveOverlayDialog({
+                                 overlay: model,
+                                 overlayRoot: folder,
+                                 overlayItem: overlayItem,
+                             }, {title: 'Edit overlay'});
+                this.listenToOnce(dialog, 'g:submit', () => model.save());
+            });
+        });
     },
 
     _onJobUpdate(evt) {
@@ -248,7 +225,6 @@ var OverlaySelector = Panel.extend({
         });
     },
 
-    /*
     editOverlay(evt) {
         var id = $(evt.currentTarget).parents('.h-overlay').data('id');
         var model = this.collection.get(id);
@@ -256,7 +232,7 @@ var OverlaySelector = Panel.extend({
         // deselect the overlay if it is already selected
         if (this._activeOverlay && model && this._activeOverlay.id === model.id) {
             this._activeOverlay = null;
-            //this.trigger('h:editOverlay', null);
+            this.trigger('h:editOverlay', null);
             this.render();
             return;
         }
@@ -272,7 +248,6 @@ var OverlaySelector = Panel.extend({
         }
         this._setActiveOverlay(model);
     },
-     */
 
     _setActiveOverlay(model) {
         this._activeOverlay = model;
