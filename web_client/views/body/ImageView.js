@@ -27,7 +27,9 @@ import imageTemplate from '../../templates/body/image.pug';
 import '../../stylesheets/body/image.styl';
 
 var ImageView = View.extend({
-    events: {},
+    events: {
+        'keydown .h-image-body': '_onKeyDown'
+    },
     initialize(settings) {
         this.viewerWidget = null;
         this._openId = null;
@@ -349,14 +351,16 @@ var ImageView = View.extend({
                         var analysis = _.last(router.getQuery('analysis').split('/'));
                         var extension = (model.get('extensions') || '').split('|')[0];
                         var name = `${analysis}-${model.id}${extension}`;
-                        model.set({
-                            path: [folder.get('name'), name],
-                            parent: folder,
-                            value: new ItemModel({
-                                name,
-                                folderId: folder.id
-                            })
-                        });
+                        if (model.get('required') !== false) {
+                            model.set({
+                                path: [folder.get('name'), name],
+                                parent: folder,
+                                value: new ItemModel({
+                                    name,
+                                    folderId: folder.id
+                                })
+                            });
+                        }
                     }
                 );
             }
@@ -655,6 +659,20 @@ var ImageView = View.extend({
 
     _setAnnotationOpacity(opacity) {
         this.viewerWidget.setGlobalAnnotationOpacity(opacity);
+    },
+
+    _onKeyDown(evt) {
+        if (evt.key === 'a') {
+            this._showOrHideAnnotations();
+        }
+    },
+
+    _showOrHideAnnotations() {
+        if (this.annotations.any((a) => a.get('displayed'))) {
+            this.annotationSelector.hideAllAnnotations();
+        } else {
+            this.annotationSelector.showAllAnnotations();
+        }
     },
 
     /*
