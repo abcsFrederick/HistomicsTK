@@ -15,9 +15,8 @@ var HistogramWidget = View.extend({
      */
 
     initialize: function (settings) {
-        this.listenTo(eventStream, 'g:event.large_image.finished_histogram_item', () => {
-            this.model.fetch({ignoreError: true});
-        });
+        this.listenTo(eventStream, 'g:event.large_image.finished_histogram_item',
+                      () => { this.model.fetch({ignoreError: true}); });
         this.listenTo(this.model, 'change', this.render);
         this.threshold = settings.threshold;
         return View.prototype.initialize.apply(this, arguments);
@@ -27,8 +26,10 @@ var HistogramWidget = View.extend({
         this.model.fetch({ignoreError: true}).fail((error) => {
             this.model.set('loading', true, {silent: true});
             if (error.status == 404) {
-                this.model.save().fail(() => {
-                    this.model.set('loading', false, {silent: true});
+                this.model.save().fail((error) => {
+                    if (error.status != 409) {
+                        this.model.set('loading', false, {silent: true});
+                    }
                 });
             }
         });
@@ -37,7 +38,9 @@ var HistogramWidget = View.extend({
     render: function () {
         var height = this.$('.h-histogram').height();
         var hist = [];
+        var valueLabels = [];
         var _hist = this.model.get('hist');
+        var binEdges = this.model.get('binEdges');
         if (!height) {
             height = 0;
         }
@@ -45,24 +48,35 @@ var HistogramWidget = View.extend({
             var maxValue = Math.max.apply(Math, _hist);
             _hist.forEach(function (value, index) {
                 hist.push(height/maxValue*value);
+                if (_hist.length == binEdges.length) {
+                   valueLabels.push(`${binEdges[index]}`);
+                } else {
+                   valueLabels.push(`${binEdges[index]}-${binEdges[index + 1]}`);
+                }
             });
-        }   
+        }
         this.$el.html(histogramWidget({
             id: 'h-histogram-container',
             loading: this.model.get('loading'),
             hist: hist,
-            height: height 
+            n: _hist,
+            values: valueLabels,
+            height: height
         }));
+
+        this.$('.h-histogram-bar').on('click', (e) => {
+            $(e.target).toggleClass('selected');
+        });
 
         this.model.set('bins', this.$('.h-histogram').width(), {silent: true});
 
-        if (_hist && _hist.length) {
-            if (this._rangeSliderView) {
-                this.stopListening(this._rangeSliderView);
-                this._rangeSliderView.off();
-                this.$('#h-histogram-slider-container').empty();
-            }
-    
+        if (this._rangeSliderView) {
+            this.stopListening(this._rangeSliderView);
+            this._rangeSliderView.off();
+            this.$('#h-histogram-slider-container').empty();
+        }
+
+        if (!this.model.get('loading') && _hist && _hist.length) {
             this._rangeSliderView = new RangeSliderWidget({
                 el: this.$('#h-histogram-slider-container'),
                 parentView: this,
@@ -70,11 +84,27 @@ var HistogramWidget = View.extend({
                 hist: this.model.get('hist'),
                 range: this.threshold
             }).render();
-    
+
+            this.$('.h-histogram-bar').each((i, bar) => {
+                if (bar.id >= this._rangeSliderView.bins.min &&
+                    bar.id <= this._rangeSliderView.bins.max) {
+                    $(bar).addClass('selected');
+                }
+            });
+
             this.listenTo(this._rangeSliderView, 'h:range', function (evt) {
                 this.threshold = evt.range;
-                this.trigger('h:range', evt);           
+                this.$('.h-histogram-bar').each((i, bar) => {
+                    if (bar.id >= evt.bins.min && bar.id <= evt.bins.max) {
+                        $(bar).addClass('selected');
+                    } else {
+                        $(bar).removeClass('selected');
+                     }
+                });
+                this.trigger('h:range', evt);
             });
+
+            this.$('[data-toggle="tooltip"]').tooltip({container: 'body'});
         }
 
         return this;

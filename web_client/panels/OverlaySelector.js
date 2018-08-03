@@ -150,6 +150,17 @@ var OverlaySelector = Panel.extend({
     toggleOverlay(evt) {
         var id = $(evt.currentTarget).parents('.h-overlay').data('id');
         var model = this.collection.get(id);
+
+        if (!this._writeAccess(model)) {
+            events.trigger('g:alert', {
+                text: 'You do not have write access to this overlay.',
+                type: 'warning',
+                timeout: 2500,
+                icon: 'info'
+            });
+            return;
+        }
+
         model.set('displayed', !model.get('displayed')).save();
     },
 
@@ -196,7 +207,8 @@ var OverlaySelector = Panel.extend({
     },
 
     _onJobUpdate(evt) {
-        if (this.parentItem && evt.data.status > 2) {
+        if (this.parentItem && evt.data.status > 2 &&
+                evt.data.type != 'large_image_histogram') {
             this._refreshOverlays();
         }
     },
@@ -274,8 +286,9 @@ var OverlaySelector = Panel.extend({
             () => {
                 params.overlay.save().done(() => {
                     this.collection.add(params.overlay);
-                    this.trigger('h:editOverlay', params.overlay);
-                    this._activeOverlay = params.overlay;
+                    this._setActiveOverlay(params.overlay);
+                    //this.trigger('h:editOverlay', params.overlay);
+                    //this._activeOverlay = params.overlay;
                 });
             }
         );

@@ -6,6 +6,9 @@ block content
     svg#h-histogram.h-histogram(viewBox="0 0 " + hist.length + " " + height,
                                 preserveAspectRatio="none")
       each value, index in hist
-        rect(id=`h-histogram-bin${index}`, x=index, y=height - value,
-                                           width=1, height=value)
+        rect.h-histogram-bar(id=`${index}`,
+                             x=index, y=height - value,
+                             width=1, height=value,
+                             data-toggle="tooltip",
+                             title=`bin: ${index+1} n: ${n[index]} ${values[index]}`)
   #h-histogram-slider-container.h-histogram

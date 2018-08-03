@@ -51,10 +51,16 @@ var RangeSliderWidget = View.extend({
             if (view.hist.length == view.binEdges.length) {
                 maxIndex++
             }
-            view.trigger('h:range', {range: {
-                min: view.binEdges[range.min],
-                max: view.binEdges[range.max]
-            }});
+            view.trigger('h:range', {
+                range: {
+                    min: view.binEdges[range.min],
+                    max: view.binEdges[range.max]
+                },
+                bins: {
+                    min: range.min,
+                    max: range.max
+                }
+            });
         }
     },
 
@@ -110,21 +116,21 @@ var RangeSliderWidget = View.extend({
             max: parentOffset + parentWidth
         };
 
-        var range = {min: 0, max: this.hist.length - 1};
+        this.bins = {min: 0, max: this.hist.length - 1};
         if (this.range) {
             this.binEdges.forEach((value, index) => {
                 if (value == this.range.min) {
-                    range.min = index;
+                    this.bins.min = index;
                 }
                 if (value == this.range.max) {
-                    range.max = index;
+                    this.bins.max = index;
                 }
             });
         }
 
         var sliderOffset = {min: sliderRange.min, max: sliderRange.max};
-        sliderOffset.min += range.min * barWidth;
-        sliderOffset.max -= (this.hist.length - range.max - 1) * barWidth;
+        sliderOffset.min += this.bins.min * barWidth;
+        sliderOffset.max -= (this.hist.length - this.bins.max - 1) * barWidth;
         this.$('.min-range-slider').offset({left: sliderOffset.min});
         this.$('.max-range-slider').offset({left: sliderOffset.max});
 
@@ -133,7 +139,7 @@ var RangeSliderWidget = View.extend({
             view: this,
             barWidth: barWidth,
             sliderRange: sliderRange,
-            range: range
+            range: this.bins
         }
 
         this.$('.range-slider').on('mousedown', null, data, this.onSliderBegin);
