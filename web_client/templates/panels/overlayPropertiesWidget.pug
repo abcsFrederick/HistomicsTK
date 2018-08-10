@@ -15,6 +15,9 @@ block content
       label(for='h-overlay-flatten-label', title='Flatten to 1-bit label')
         input#h-overlay-flatten-label(type='checkbox', checked=flattenLabel)
         | Flatten
+      label(for='h-overlay-bitmask-label', title='Label image values are bitmasks')
+        input#h-overlay-bitmask-label(type='checkbox', checked=bitmask)
+        | Bitmask
   .form-group
     label#h-overlay-opacity-label(for='h-overlay-opacity')=`Opacity ${(opacity * 100).toFixed()}%`
     input#h-overlay-opacity(

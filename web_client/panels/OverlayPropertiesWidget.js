@@ -26,6 +26,13 @@ var OverlayPropertiesWidget = Panel.extend({
         'input #h-overlay-flatten-label': function(e) {
             this.overlay.set('flattenLabel', $(e.target).is(':checked')).save();
         },
+        'input #h-overlay-bitmask-label': function(e) {
+            if (this._histogramView.model.get('loading')) {
+                $(e.target).prop('checked', !$(e.target).prop('checked'));
+            } else {
+                this.overlay.set('bitmask', $(e.target).is(':checked')).save();
+            }
+        },
         'input #h-overlay-opacity': function(e) {
             var opacity = this.$('#h-overlay-opacity').val();
             var text = `Overlay opacity ${(opacity * 100).toFixed()}%`;
@@ -48,11 +55,15 @@ var OverlayPropertiesWidget = Panel.extend({
         this.listenTo(this.overlay, 'change:opacity', this._setOverlayOpacity);
         this.listenTo(this.overlay, 'change:threshold change:offset ' +
                                     'change:label change:invertLabel ' +
-                                    'change:flattenLabel change:overlayItemId',
-                      (overlay, value) => { this.trigger('h:redraw', overlay);});
-        this.listenTo(this.overlay, 'change:label',
-                      (model, value) => {
-                          this._histogramView.model.set('label', value);
+                                    'change:flattenLabel change:bitmask ' +
+					                          'change:overlayItemId',
+                      (model) => { this.trigger('h:redraw', model);});
+        this.listenTo(this.overlay, 'change:label change:bitmask',
+                      (model) => {
+                          this._histogramView.model.set({
+													    'label': model.get('label'),
+													    'bitmask': model.get('bitmask')
+													});
                           this._histogramView.getHistogram();
                           this._histogramView.render();
                       });
@@ -69,6 +80,7 @@ var OverlayPropertiesWidget = Panel.extend({
             label: this.overlay.get('label'),
             invertLabel: this.overlay.get('invertLabel'),
             flattenLabel: this.overlay.get('flattenLabel'),
+            bitmask: this.overlay.get('bitmask'),
             opacity: this.overlay.get('opacity'),
             offset: this.overlay.get('offset'),
             name
@@ -99,7 +111,8 @@ var OverlayPropertiesWidget = Panel.extend({
         this._histogramView = new HistogramWidget({
             el: this.$('.h-histogram-widget-container'),
             model: new HistogramModel({
-                label: this.overlay.get('label')
+                label: this.overlay.get('label'),
+                bitmask: this.overlay.get('bitmask')
             }),
             parentView: this,
             threshold: this.overlay.get('threshold')
