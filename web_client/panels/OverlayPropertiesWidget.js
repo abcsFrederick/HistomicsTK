@@ -5,6 +5,7 @@ import Panel from 'girder_plugins/slicer_cli_web/views/Panel';
 
 import ItemModel from 'girder/models/ItemModel';
 import HistogramModel from 'girder_plugins/large_image/models/HistogramModel';
+import ColormapModel from 'girder_plugins/large_image/models/ColormapModel';
 
 import HistogramWidget from '../dialogs/histogramWidget';
 
@@ -47,6 +48,13 @@ var OverlayPropertiesWidget = Panel.extend({
             var offset = this.overlay.get('offset');
             this.overlay.set('offset', {x: offset.x, y: e.target.valueAsNumber}).save();
         },
+        'click .h-test-colormap': function(e) {
+            if (this.overlay.get('colormapId')) {
+                this.overlay.unset('colormapId');
+            } else {
+                this.overlay.set('colormapId', '5b730ced52c0ce11baa34662');
+            }
+        }
     }),
 
     initialize(settings) {
@@ -56,17 +64,21 @@ var OverlayPropertiesWidget = Panel.extend({
         this.listenTo(this.overlay, 'change:threshold change:offset ' +
                                     'change:label change:invertLabel ' +
                                     'change:flattenLabel change:bitmask ' +
-					                          'change:overlayItemId',
+                                    'change:overlayItemId change:colormapId',
                       (model) => { this.trigger('h:redraw', model);});
         this.listenTo(this.overlay, 'change:label change:bitmask',
                       (model) => {
                           this._histogramView.model.set({
-													    'label': model.get('label'),
-													    'bitmask': model.get('bitmask')
-													});
+                              'label': model.get('label'),
+                              'bitmask': model.get('bitmask')
+                          });
                           this._histogramView.getHistogram();
                           this._histogramView.render();
                       });
+        //this.listenTo(this.overlay, 'change:colormapId',
+        //              (model, value) => {
+        //                  this._histogramView.model.set('colormapId', value);
+        //              });
     },
 
     render() {
@@ -114,6 +126,7 @@ var OverlayPropertiesWidget = Panel.extend({
                 label: this.overlay.get('label'),
                 bitmask: this.overlay.get('bitmask')
             }),
+            colormapId: this.overlay.get('colormapId'),
             parentView: this,
             threshold: this.overlay.get('threshold')
         }).render();

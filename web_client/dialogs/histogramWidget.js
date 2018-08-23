@@ -8,6 +8,8 @@ import RangeSliderWidget from './rangeSliderWidget';
 import histogramWidget from '../templates/dialogs/histogramWidget.pug';
 import '../stylesheets/dialogs/histogramWidget.styl';
 
+import ColormapModel from 'girder_plugins/large_image/models/ColormapModel';
+
 var HistogramWidget = View.extend({
     /*
     events: _.extend(View.prototype.events, {
@@ -15,11 +17,64 @@ var HistogramWidget = View.extend({
      */
 
     initialize: function (settings) {
-        this.listenTo(eventStream, 'g:event.large_image.finished_histogram_item',
-                      () => { this.model.fetch({ignoreError: true}); });
+        this.listenTo(settings.parentView.overlay, 'change:colormapId',
+                      (model, value) => {
+                          if (value) {
+                              this.colormap = new ColormapModel({
+                                  _id: value
+                              });
+                              this.colormap.fetch().done(() => {
+                                  this.renderColormap();
+                              });
+                          } else {
+                              this.colormap = undefined;
+                              this.renderColormap();
+                          }
+                      });
         this.listenTo(this.model, 'change', this.render);
         this.threshold = settings.threshold;
+        this.listenTo(eventStream,
+                      'g:event.large_image.finished_histogram_item',
+                      () => { this.model.fetch({ignoreError: true}) });
+        if (settings.colormapId) {
+            this.colormap = new ColormapModel({
+                _id: settings.colormapId
+            });
+            this.colormap.fetch().done(() => {
+                this.renderColormap();
+            });
+        }
         return View.prototype.initialize.apply(this, arguments);
+    },
+
+    renderColormap: function() {
+        if (!this.model || !this.colormap || !this.colormap.get('colormap') || !this.model.get('bitmask') && !this.bin_range) {
+            this.$('.h-histogram-bar').each((i, bar) => {
+                $(bar).css('fill', '');
+            });
+            return;
+        }
+        if (!this.model.get('bitmask')) {
+            var scale = this.model.get('bins')/(this.bin_range.max - this.bin_range.min);
+        }
+        var colormapArray = this.colormap.get('colormap');
+        this.$('.h-histogram-bar').each((i, bar) => {
+            if (i < this.bin_range.min || i > this.bin_range.max) {
+                $(bar).css('fill', '');
+                return;
+            }
+            if (this.model.get('bitmask')) {
+                //i -= !this.model.get('label');
+                //i = i >= 0 ? 1 << i : 0;
+                i = Math.round(i*255/8);
+            } else {
+                i = Math.round(scale*(i - this.bin_range.min));
+            }
+            if (!colormapArray[i]) {
+                return;
+            }
+            $(bar).css('fill', 'rgb(' + colormapArray[i].join(', ') + ')');
+        });
     },
 
     getHistogram: function () {
@@ -85,6 +140,9 @@ var HistogramWidget = View.extend({
                 range: this.threshold
             }).render();
 
+            this.bin_range = this._rangeSliderView.bins;
+            this.renderColormap();
+
             this.$('.h-histogram-bar').each((i, bar) => {
                 if (bar.id >= this._rangeSliderView.bins.min &&
                     bar.id <= this._rangeSliderView.bins.max) {
@@ -94,6 +152,7 @@ var HistogramWidget = View.extend({
 
             this.listenTo(this._rangeSliderView, 'h:range', function (evt) {
                 this.threshold = evt.range;
+                this.bin_range = evt.bins;
                 this.$('.h-histogram-bar').each((i, bar) => {
                     if (bar.id >= evt.bins.min && bar.id <= evt.bins.max) {
                         $(bar).addClass('selected');
@@ -101,7 +160,11 @@ var HistogramWidget = View.extend({
                         $(bar).removeClass('selected');
                      }
                 });
+                this.renderColormap();
                 this.trigger('h:range', evt);
+            });
+
+            this.listenTo(this._rangeSliderView, 'h:range', function (evt) {
             });
 
             this.$('[data-toggle="tooltip"]').tooltip({container: 'body'});
