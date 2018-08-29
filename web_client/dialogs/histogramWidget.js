@@ -33,6 +33,7 @@ var HistogramWidget = View.extend({
                       });
         this.listenTo(this.model, 'change', this.render);
         this.threshold = settings.threshold;
+        this.exclude = settings.exclude || [];
         this.listenTo(eventStream,
                       'g:event.large_image.finished_histogram_item',
                       () => { this.model.fetch({ignoreError: true}) });
@@ -91,14 +92,12 @@ var HistogramWidget = View.extend({
     },
 
     render: function () {
-        var height = this.$('.h-histogram').height();
+        var width = this.$('.h-histogram').width() || 0;
+        var height = this.$('.h-histogram').height() || 0;
         var hist = [];
         var valueLabels = [];
         var _hist = this.model.get('hist');
         var binEdges = this.model.get('binEdges');
-        if (!height) {
-            height = 0;
-        }
         if (_hist) {
             var maxValue = Math.max.apply(Math, _hist);
             _hist.forEach(function (value, index) {
@@ -116,12 +115,9 @@ var HistogramWidget = View.extend({
             hist: hist,
             n: _hist,
             values: valueLabels,
-            height: height
+            width_: width,
+            height_: height
         }));
-
-        this.$('.h-histogram-bar').on('click', (e) => {
-            $(e.target).toggleClass('selected');
-        });
 
         this.model.set('bins', this.$('.h-histogram').width(), {silent: true});
 
@@ -148,6 +144,31 @@ var HistogramWidget = View.extend({
                     bar.id <= this._rangeSliderView.bins.max) {
                     $(bar).addClass('selected');
                 }
+                if (_.contains(this.exclude, i + this.model.get('label'))) {
+                    $(bar).addClass('exclude');
+                }
+            });
+
+            this.$('.h-histogram-bar').on('click', (e) => {
+                if (!this.model.get('bitmask') ||
+                    e.target.id < this.bin_range.min ||
+                    e.target.id > this.bin_range.max) {
+                     return;
+                }
+                $(e.target).toggleClass('exclude');
+                var value = $(e.target).hasClass('exclude');
+                var bin = parseInt(e.target.id) + this.model.get('label');
+                if (value) {
+                    this.exclude.splice(_.sortedIndex(this.exclude, bin), 0, bin);
+                } else {
+                    this.exclude.splice(this.exclude.indexOf(bin), 1);
+                }
+
+                this.trigger('h:exclude', {
+                    exclude: this.exclude,
+                    bin: bin,
+                    value: value
+                });
             });
 
             this.listenTo(this._rangeSliderView, 'h:range', function (evt) {
@@ -158,13 +179,11 @@ var HistogramWidget = View.extend({
                         $(bar).addClass('selected');
                     } else {
                         $(bar).removeClass('selected');
-                     }
+                        $(bar).removeClass('exclude');
+                    }
                 });
                 this.renderColormap();
                 this.trigger('h:range', evt);
-            });
-
-            this.listenTo(this._rangeSliderView, 'h:range', function (evt) {
             });
 
             this.$('[data-toggle="tooltip"]').tooltip({container: 'body'});

@@ -3,11 +3,20 @@ block content
     #h-histogram-placeholder.h-histogram
       span#h-histogram-progress.icon-spin3.animate-spin
   else
-    svg#h-histogram.h-histogram(viewBox="0 0 " + hist.length + " " + height,
+    svg#h-histogram.h-histogram(viewBox="0 0 " + hist.length + " " + height_,
                                 preserveAspectRatio="none")
+      if width_
+        - var scale = hist.length/width_;
+        pattern#pattern-checkers(x=0, y=0, width=2*scale, height=2,
+                                 patternUnits="userSpaceOnUse")
+          rect.checker-background(x=0, y=0, width=2*scale, height=2)
+          rect.checker(x=0, y=0, width=scale, height=1)
+          rect.checker(x=scale, y=1, width=scale, height=1)
+        rect(x=0, y=0, width="100%", height="100%",
+             fill="url(#pattern-checkers)")
       each value, index in hist
         rect.h-histogram-bar(id=`${index}`,
-                             x=index, y=height - value,
+                             x=index, y=height_ - value,
                              width=1, height=value,
                              data-toggle="tooltip",
                              title=`bin: ${index+1} n: ${n[index]} ${values[index]}`)

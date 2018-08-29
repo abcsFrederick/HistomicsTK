@@ -143,11 +143,18 @@ var OverlayPropertiesWidget = Panel.extend({
             }),
             colormapId: this.overlay.get('colormapId'),
             parentView: this,
-            threshold: this.overlay.get('threshold')
+            threshold: this.overlay.get('threshold'),
+            exclude: this.overlay.get('exclude')
         }).render();
 
         this.listenTo(this._histogramView, 'h:range', function (evt) {
             this.overlay.set('threshold', evt.range).save();
+        });
+
+        this.listenTo(this._histogramView, 'h:exclude', function (evt) {
+            this.overlay.set('exclude', evt.exclude).save().done(() => {
+                this.trigger('h:redraw', this.overlay);
+            });
         });
     },
 
