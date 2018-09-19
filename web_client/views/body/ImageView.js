@@ -21,6 +21,7 @@ import OverlaySelector from '../../panels/OverlaySelector';
 import ZoomWidget from '../../panels/ZoomWidget';
 import OverlayPropertiesWidget from '../../panels/OverlayPropertiesWidget';
 import DrawWidget from '../../panels/DrawWidget';
+import editElement from '../../dialogs/editElement';
 import router from '../../router';
 import events from '../../events';
 import View from '../View';
@@ -34,10 +35,11 @@ var ImageView = View.extend({
         'keydown .geojs-map': '_handleKeyDown'
     },
     initialize(settings) {
-        window.view = this;
         this.viewerWidget = null;
         this._openId = null;
         this._displayedRegion = null;
+        this.selectedAnnotation = new AnnotationModel({_id: 'selected'});
+        this.selectedElements = this.selectedAnnotation.elements();
 
         // Allow zooming this many powers of 2 more than native pixel resolution
         this._increaseZoom2x = 1;
@@ -49,6 +51,7 @@ var ImageView = View.extend({
         this.listenTo(events, 'h:analysis:rendered', this._setImageInput);
         this.listenTo(events, 'h:analysis:rendered', this._setDefaultFileOutputs);
         this.listenTo(events, 'h:analysis:rendered', this._resetRegion);
+        this.listenTo(this.selectedElements, 'add remove reset', this._redrawSelection);
         events.trigger('h:imageOpened', null);
         this.listenTo(events, 'query:image', this.openImage);
         this.annotations = new AnnotationCollection();
@@ -75,7 +78,7 @@ var ImageView = View.extend({
         });
         this.contextMenu = new AnnotationContextMenu({
             parentView: this,
-            collection: this.annotations
+            collection: this.selectedElements
         });
 
         this.listenTo(events, 'h:submit', (data) => {
@@ -90,9 +93,13 @@ var ImageView = View.extend({
         this.listenTo(this.annotationSelector, 'h:editAnnotation', this._editAnnotation);
         this.listenTo(this.annotationSelector, 'h:deleteAnnotation', this._deleteAnnotation);
         this.listenTo(this.annotationSelector, 'h:annotationOpacity', this._setAnnotationOpacity);
-        this.listenTo(this, 'h:highlightAnnotation', this._highlightAnnotation);
+        this.listenTo(this.annotationSelector, 'h:redraw', this._redrawAnnotation);
+        this.listenTo(this, 'h:highlightAnnotation', this._highlightAnnotationForInteractiveMode);
+        this.listenTo(this.contextMenu, 'h:edit', this._editElement);
         this.listenTo(this.contextMenu, 'h:redraw', this._redrawAnnotation);
         this.listenTo(this.contextMenu, 'h:close', this._closeContextMenu);
+        this.listenTo(this.selectedElements, 'h:save', this._saveSelection);
+        this.listenTo(this.selectedElements, 'h:remove', this._removeSelection);
 
         this.listenTo(this.overlaySelector.collection, 'add update change:displayed', this.toggleOverlay);
         this.listenTo(this.overlaySelector, 'h:editOverlay', this._editOverlay);
@@ -444,6 +451,10 @@ var ImageView = View.extend({
         }
 
         if (annotation.get('displayed')) {
+            var viewer = this.viewerWidget.viewer || {};
+            if (viewer.zoomRange && annotation._pageElements === true) {
+                annotation.setView(viewer.bounds(), viewer.zoom(), viewer.zoomRange().max, true);
+            }
             annotation.set('loading', true);
             annotation.fetch().then(() => {
                 this.viewerWidget.drawAnnotation(annotation);
@@ -465,10 +476,11 @@ var ImageView = View.extend({
         this.viewerWidget.drawAnnotation(annotation);
     },
 
-    _highlightAnnotation(annotation, element) {
-        if (!this.annotationSelector.interactiveMode() && !this._contextMenuActive) {
+    _highlightAnnotationForInteractiveMode(annotation, element) {
+        if (!this.annotationSelector.interactiveMode()) {
             return;
         }
+        this._closeContextMenu();
         this.viewerWidget.highlightAnnotation(annotation, element);
     },
 
@@ -585,7 +597,7 @@ var ImageView = View.extend({
     },
 
     mouseOnAnnotation(element, annotationId) {
-        if (annotationId === 'region-selection' || !this.annotationSelector.interactiveMode()) {
+        if (annotationId === 'region-selection' || annotationId === 'selected' || !this.annotationSelector.interactiveMode()) {
             return;
         }
         const annotation = this.annotations.get(annotationId);
@@ -597,7 +609,7 @@ var ImageView = View.extend({
     },
 
     mouseOffAnnotation(element, annotationId) {
-        if (annotationId === 'region-selection' || !this.annotationSelector.interactiveMode()) {
+        if (annotationId === 'region-selection' || annotationId === 'selected' || !this.annotationSelector.interactiveMode()) {
             return;
         }
         const annotation = this.annotations.get(annotationId);
@@ -609,7 +621,7 @@ var ImageView = View.extend({
     },
 
     mouseOverAnnotation(element, annotationId) {
-        if (annotationId === 'region-selection') {
+        if (annotationId === 'region-selection' || annotationId === 'selected') {
             return;
         }
         element.annotation = this.annotations.get(annotationId);
@@ -619,7 +631,7 @@ var ImageView = View.extend({
     },
 
     mouseOutAnnotation(element, annotationId) {
-        if (annotationId === 'region-selection') {
+        if (annotationId === 'region-selection' || annotationId === 'selected') {
             return;
         }
         element.annotation = this.annotations.get(annotationId);
@@ -633,8 +645,15 @@ var ImageView = View.extend({
     },
 
     mouseClickAnnotation(element, annotationId, evt) {
+        if (!element.annotation) {
+            // This is an instance of "selectedElements" and should be ignored.
+            return;
+        }
+
         if (evt.mouse.buttonsDown.right) {
-            this._rightClickElement(element, this.annotations.get(annotationId), evt);
+            this._openContextMenu(element.annotation.elements().get(element.id), annotationId, evt);
+        } else if (evt.mouse.modifiers.ctrl) {
+            this._toggleSelectElement(element.annotation.elements().get(element.id));
         }
     },
 
@@ -709,22 +728,27 @@ var ImageView = View.extend({
         }
     },
 
-    _rightClickElement(element, annotation, evt) {
-        if (annotation.get('_accessLevel') < AccessType.WRITE) {
+    _openContextMenu(element, annotationId, evt) {
+        if (!this.selectedElements.get(element.id)) {
+            this._resetSelection();
+            this._selectElement(element);
+        }
+
+        if (!this.selectedElements.get(element.id)) {
+            // If still not selected, then the user does not have access.
             return;
         }
 
         // Defer the context menu action into the next animation frame
         // to work around a problem with preventDefault on Windows
         window.setTimeout(() => {
-            this._editAnnotation(annotation);
             const menu = this.$('#h-annotation-context-menu');
             const position = evt.mouse.page;
             menu.removeClass('hidden');
             menu.css({ left: position.x, top: position.y });
             this.popover.collection.reset();
             this._contextMenuActive = true;
-            this.contextMenu.setHovered(element, annotation);
+            // this.contextMenu.setHovered(element, annotation);
         }, 1);
     },
 
@@ -733,10 +757,11 @@ var ImageView = View.extend({
             return;
         }
         this.$('#h-annotation-context-menu').addClass('hidden');
+        this._resetSelection();
         this.popover.collection.reset();
-        this.contextMenu.reset();
         this._contextMenuActive = false;
     },
+
 
     /*
     _addOverlay(overlay) {
@@ -810,7 +835,81 @@ var ImageView = View.extend({
 
     _moveOverlayDown(index) {
         this.viewerWidget.moveOverlayDown(index);
+    },
+
+    _editElement(element) {
+        const annotation = this.annotations.get(element.originalAnnotation);
+        this._editAnnotation(annotation);
+        editElement(annotation.elements().get(element.id));
+    },
+
+    _redrawSelection() {
+        this.viewerWidget.removeAnnotation(this.selectedAnnotation);
+        this.viewerWidget.drawAnnotation(this.selectedAnnotation, {fetch: false});
+    },
+
+    _selectElement(element) {
+        // don't allow selecting annotations with no write access or
+        // elements not associated with a real annotation.
+        const annotation = (element.collection || {}).annotation;
+        if (!annotation || annotation.get('_accessLevel') < AccessType.WRITE) {
+            return;
+        }
+
+        var elementModel = this.selectedElements.add(element.attributes);
+        elementModel.originalAnnotation = annotation;
+        this.viewerWidget.highlightAnnotation(this.selectedAnnotation.id);
+    },
+
+    _unselectElement(element) {
+        this.selectedElements.remove(element.id);
+        if (!this.selectedElements.length) {
+            this.viewerWidget.highlightAnnotation();
+        }
+    },
+
+    _toggleSelectElement(element) {
+        if (this.selectedElements.get(element.id)) {
+            this._unselectElement(element);
+        } else {
+            this._selectElement(element);
+        }
+    },
+
+    _resetSelection() {
+        this.viewerWidget.highlightAnnotation();
+        this.selectedElements.reset();
+    },
+
+    _saveSelection() {
+        const groupedAnnotations = this.selectedElements.groupBy((element) => element.originalAnnotation.id);
+        _.each(groupedAnnotations, (elements, annotationId) => {
+            const annotation = this.annotations.get(annotationId);
+            _.each(elements, (element) => { /* eslint-disable backbone/no-silent */
+                const annotationElement = annotation.elements().get(element.id);
+                // silence the event because we want to make one save call for each annotation.
+                annotationElement.set(element.toJSON(), { silent: true });
+                if (!element.get('group')) {
+                    annotationElement.unset('group', { silent: true });
+                }
+            });
+            if (!elements.length) {
+                return;
+            }
+            const annotationData = _.extend({}, annotation.get('annotation'));
+            annotationData.elements = annotation.elements().toJSON();
+            annotation.set('annotation', annotationData);
+        });
+    },
+
+    _removeSelection() {
+        const groupedAnnotations = this.selectedElements.groupBy((element) => element.originalAnnotation.id);
+        _.each(groupedAnnotations, (elements, annotationId) => { /* eslint-disable backbone/no-silent */
+            // silence the event because we want to make one save call for each annotation.
+            const elementsCollection = this.annotations.get(annotationId).elements();
+            elementsCollection.remove(elements, { silent: true });
+            elementsCollection.trigger('reset', elementsCollection);
+        });
     }
 });
-
 export default ImageView;
