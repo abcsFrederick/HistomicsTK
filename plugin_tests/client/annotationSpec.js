@@ -578,6 +578,20 @@ $(function () {
                 app.bodyView.viewerWidget.setGlobalAnnotationOpacity = setGlobalAnnotationOpacityFunc;
             });
 
+            it('set the global annotation fill opacity', function () {
+                var opacity;
+                var setGlobalAnnotationFillOpacityFunc = app.bodyView.viewerWidget.setGlobalAnnotationFillOpacity;
+                app.bodyView.viewerWidget.setGlobalAnnotationFillOpacity = function (_opacity) {
+                    opacity = _opacity;
+                    return setGlobalAnnotationFillOpacityFunc.apply(this, arguments);
+                };
+
+                $('#h-annotation-fill-opacity').val(0.5).trigger('input');
+                expect(opacity).toBe('0.5');
+
+                app.bodyView.viewerWidget.setGlobalAnnotationFillOpacity = setGlobalAnnotationFillOpacityFunc;
+            });
+
             it('toggle visibility of an annotation', function () {
                 runs(function () {
                     var $el = $('.h-annotation-selector .h-annotation:contains("drawn 1")');
@@ -623,6 +637,31 @@ $(function () {
                 runs(function () {
                     var $el = $('.h-annotation-selector .h-annotation:contains("edited 1")');
                     expect($el.length).toBe(1);
+                });
+            });
+
+            it('edit annotation style', function () {
+                runs(function () {
+                    $('.h-annotation-selector .h-annotation:contains("drawn 2") .h-edit-annotation-metadata').click();
+                });
+
+                girderTest.waitForDialog();
+                runs(function () {
+                    expect($('#h-annotation-name').val()).toBe('drawn 2');
+                    expect($('#h-annotation-line-color').length).toBe(1);
+                    expect($('#h-annotation-fill-color').length).toBe(1);
+                    $('#h-annotation-line-color').val('black');
+                    $('#h-annotation-fill-color').val('white');
+                    $('.h-submit').click();
+                });
+
+                girderTest.waitForLoad();
+                runs(function () {
+                    var annotation = app.bodyView.annotations.filter(function (annotation) {
+                        return annotation.get('annotation').name === 'drawn 2';
+                    })[0];
+                    expect(annotation.get('annotation').elements[0].lineColor).toBe('rgb(0, 0, 0)');
+                    expect(annotation.get('annotation').elements[0].fillColor).toBe('rgb(255, 255, 255)');
                 });
             });
 
