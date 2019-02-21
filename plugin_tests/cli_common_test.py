@@ -130,7 +130,8 @@ class CliCommonTest(unittest.TestCase):
             'min_nucleus_area': 25,
             'local_max_search_radius': 8,
 
-            'scheduler': None,
+            # In Python 3 unittesting, the scheduler fails if it uses processes
+            'scheduler': 'multithreading',  # None,
             'num_workers': -1,
             'num_threads_per_worker': 1,
         }
@@ -204,12 +205,14 @@ class CliCommonTest(unittest.TestCase):
             im_nuclei_stain = im_stains[:, :, 0].astype(np.float)
 
             # segment nuclei
-            im_nuclei_seg_mask = htk_nuclear.detect_nuclei_kofahi(im_nuclei_stain,
-                                                                  args.foreground_threshold,
-                                                                  args.min_radius,
-                                                                  args.max_radius,
-                                                                  args.min_nucleus_area,
-                                                                  args.local_max_search_radius)
+            im_nuclei_seg_mask = htk_nuclear.detect_nuclei_kofahi(
+                im_nuclei_stain,
+                args.foreground_threshold,
+                args.min_radius,
+                args.max_radius,
+                args.min_nucleus_area,
+                args.local_max_search_radius
+            )
 
             # generate nuclei annotations as bboxes
             cur_bbox_annot_list = cli_utils.create_tile_nuclei_annotations(

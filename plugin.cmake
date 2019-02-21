@@ -92,6 +92,12 @@ add_histomicstk_python_test(feature_extraction
     # There is a bug in cmake that fails when external data files are added to
     # multiple tests, so add it in one of the tests for now
     # "plugins/HistomicsTK/L1.png"    # put L1.png.sha512 in plugin_tests/data
+    # "plugins/HistomicsTK/Easy1.png" # put Easy1.png.sha512 in plugin_tests/data
+    "plugins/HistomicsTK/Easy1_nuclei_intensity_features.csv"
+    "plugins/HistomicsTK/Easy1_nuclei_gradient_features.csv"
+    "plugins/HistomicsTK/Easy1_nuclei_morphometry_features.csv"
+    "plugins/HistomicsTK/Easy1_nuclei_fsd_features.csv"
+    "plugins/HistomicsTK/Easy1_nuclei_haralick_features.csv"
 )
 
 add_histomicstk_python_test(segmentation_label
@@ -99,6 +105,10 @@ add_histomicstk_python_test(segmentation_label
     DBNAME core_trace_boundary
 )
 
+add_histomicstk_python_test(segmentation_label
+    SUBMODULE DeleteBorderLabelTest
+    DBNAME core_delete_border
+)
 
 add_histomicstk_python_test(nuclei_segmentation
     SUBMODULE NucleiSegmentationTest
