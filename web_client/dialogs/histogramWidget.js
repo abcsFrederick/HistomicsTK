@@ -80,11 +80,14 @@ var HistogramWidget = View.extend({
 
     getHistogram: function () {
         this.model.fetch({ignoreError: true}).fail((error) => {
-            this.model.set('loading', true, {silent: true});
+            this.model.set({
+                loading: true,
+                error: false,
+            }, {silent: true});
             if (error.status == 404) {
                 this.model.save().fail((error) => {
                     if (error.status != 409) {
-                        this.model.set('loading', false, {silent: true});
+                        this.model.set({loading: false, error: true});
                     }
                 });
             }
@@ -112,6 +115,7 @@ var HistogramWidget = View.extend({
         this.$el.html(histogramWidget({
             id: 'h-histogram-container',
             loading: this.model.get('loading'),
+            error: this.model.get('error'),
             hist: hist,
             n: _hist,
             values: valueLabels,

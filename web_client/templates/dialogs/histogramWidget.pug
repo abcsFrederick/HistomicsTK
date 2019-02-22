@@ -1,5 +1,8 @@
 block content
-  if loading
+  if error
+    #h-histogram-placeholder.h-histogram
+      span#h-histogram-progress.icon-minus-circled
+  else if loading
     #h-histogram-placeholder.h-histogram
       span#h-histogram-progress.icon-spin3.animate-spin
   else
