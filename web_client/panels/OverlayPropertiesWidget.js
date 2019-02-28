@@ -65,6 +65,18 @@ var OverlayPropertiesWidget = Panel.extend({
     initialize(settings) {
         this.viewer = settings.viewer;
         this.overlay = settings.overlay;
+        /*
+        this.listenTo(this.viewer, 'h:pixel-value', (value) => {
+            _.forEach(this._histogramView.colormap.get('colormap'),
+                      (color, i) => {
+                if (value.r == color[0] && value.g == color[1] &&
+                        value.b == color[2]) {
+                    console.log(i);
+                }
+            });
+            console.log(value);
+        });
+         */
         this.listenTo(this.overlay, 'change:opacity', this._setOverlayOpacity);
         this.listenTo(this.overlay, 'change:threshold change:offset ' +
                                     'change:label change:invertLabel ' +

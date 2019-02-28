@@ -614,6 +614,21 @@ var ImageView = View.extend({
             this.$('.h-image-coordinates').text(
                 pt.x.toFixed() + ', ' + pt.y.toFixed()
             );
+
+            /*
+            // TODO: get visible or "selected" layer (activeOverlay)
+            var layer = this.viewer.layers()[3];
+            var x = evt.map.x, y = evt.map.y;
+            var opts = { background: false, wait:'idle' };
+            var viewer = this.viewerWidget;
+            this.viewer.screenshot(layer, 'canvas', opts).then(function (canvas) {
+                var d = canvas.getContext('2d').getImageData(x, y, 1, 1).data;
+                viewer.trigger('h:pixel-value', {
+                    x: pt.x, y: pt.y,
+                    r: d[0], g: d[1], b: d[2], a: d[3]
+                });
+            });
+             */
         }
     },
 
