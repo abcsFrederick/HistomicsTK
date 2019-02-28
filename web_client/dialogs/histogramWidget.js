@@ -67,6 +67,7 @@ var HistogramWidget = View.extend({
             if (this.model.get('bitmask')) {
                 //i -= !this.model.get('label');
                 //i = i >= 0 ? 1 << i : 0;
+                i += this.model.get('label') ? 1 : 0;
                 i = Math.round(i*255/8);
             } else {
                 i = Math.round(scale*(i - this.bin_range.min));
