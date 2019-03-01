@@ -164,9 +164,10 @@ var HistogramWidget = View.extend({
                 var value = $(e.target).hasClass('exclude');
                 var bin = parseInt(e.target.id) + this.model.get('label');
                 if (value) {
-                    this.exclude.splice(_.sortedIndex(this.exclude, bin), 0, bin);
+                    this.exclude.push(bin);
+                    this.exclude = _.uniq(this.exclude);
                 } else {
-                    this.exclude.splice(this.exclude.indexOf(bin), 1);
+                    this.exclude = _.without(this.exclude, bin);
                 }
 
                 this.trigger('h:exclude', {
