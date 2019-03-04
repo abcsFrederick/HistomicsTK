@@ -78,6 +78,7 @@ var OverlayPropertiesWidget = Panel.extend({
         });
          */
         this.listenTo(this.overlay, 'change:opacity', this._setOverlayOpacity);
+        this.listenTo(this.overlay, 'change:opacities', this._setOverlayOpacities);
         this.listenTo(this.overlay, 'change:threshold change:offset ' +
                                     'change:label change:invertLabel ' +
                                     'change:flattenLabel change:bitmask ' +
@@ -156,7 +157,8 @@ var OverlayPropertiesWidget = Panel.extend({
             colormapId: this.overlay.get('colormapId'),
             parentView: this,
             threshold: this.overlay.get('threshold'),
-            exclude: this.overlay.get('exclude')
+            exclude: this.overlay.get('exclude'),
+            opacities: this.overlay.get('opacities')
         }).render();
 
         this.listenTo(this._histogramView, 'h:range', function (evt) {
@@ -167,6 +169,10 @@ var OverlayPropertiesWidget = Panel.extend({
             this.overlay.set('exclude', evt.exclude).save().done(() => {
                 this.trigger('h:redraw', this.overlay);
             });
+        });
+
+        this.listenTo(this._histogramView, 'h:opacities', function (evt) {
+            this.overlay.set('opacities', evt.opacities).save();
         });
     },
 
@@ -188,6 +194,13 @@ var OverlayPropertiesWidget = Panel.extend({
         this.trigger('h:overlayOpacity', {
             index: overlay.get('index'),
             opacity: value
+        });
+    },
+
+    _setOverlayOpacities(overlay, value) {
+        this.trigger('h:overlayOpacities', {
+            index: overlay.get('index'),
+            opacities: value
         });
     }
 });

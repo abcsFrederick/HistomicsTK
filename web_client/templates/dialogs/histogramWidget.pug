@@ -18,9 +18,12 @@ block content
         rect(x=0, y=0, width="100%", height="100%",
              fill="url(#pattern-checkers)")
       each value, index in hist
-        rect.h-histogram-bar(id=`${index}`,
-                             x=index, y=height_ - value,
-                             width=1, height=value,
-                             data-toggle="tooltip",
-                             title=`bin: ${index+1} n: ${n[index]} ${values[index]}`)
+        rect.h-histogram-bar.background(x=index, y=0, width=1, height="100%",
+                                                        value=`${index}`,
+                                                        data-toggle="tooltip",
+                       title=`bin: ${index+1} n: ${n[index]} ${values[index]}`)
+        rect.h-histogram-bar.foreground(x=index, y=height_ - value,
+                                        width=1, height=value, value=`${index}`)
+        rect.h-histogram-bar.opacity(x=index, y=0, width=1, height=1,
+                                     value=`${index}`)
   #h-histogram-slider-container.h-histogram

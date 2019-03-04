@@ -34,6 +34,7 @@ var HistogramWidget = View.extend({
         this.listenTo(this.model, 'change', this.render);
         this.threshold = settings.threshold;
         this.exclude = settings.exclude || [];
+        this.opacities = settings.opacities || [];
         this.listenTo(eventStream,
                       'g:event.large_image.finished_histogram_item',
                       () => { this.model.fetch({ignoreError: true}) });
@@ -50,7 +51,7 @@ var HistogramWidget = View.extend({
 
     renderColormap: function() {
         if (!this.model || !this.colormap || !this.colormap.get('colormap') || !this.model.get('bitmask') && !this.bin_range) {
-            this.$('.h-histogram-bar').each((i, bar) => {
+            this.$('.h-histogram-bar.foreground').each((i, bar) => {
                 $(bar).css('fill', '');
             });
             return;
@@ -59,23 +60,22 @@ var HistogramWidget = View.extend({
             var scale = this.model.get('bins')/(this.bin_range.max - this.bin_range.min);
         }
         var colormapArray = this.colormap.get('colormap');
-        this.$('.h-histogram-bar').each((i, bar) => {
-            if (i < this.bin_range.min || i > this.bin_range.max) {
+        this.$('.h-histogram-bar.foreground').each((i, bar) => {
+            var value = parseInt($(bar).attr('value'));
+            if (value < this.bin_range.min || value > this.bin_range.max) {
                 $(bar).css('fill', '');
                 return;
             }
             if (this.model.get('bitmask')) {
-                //i -= !this.model.get('label');
-                //i = i >= 0 ? 1 << i : 0;
-                i += this.model.get('label') ? 1 : 0;
-                i = Math.round(i*255/8);
+                value += this.model.get('label') ? 1 : 0;
+                value = Math.round(value*255/8);
             } else {
-                i = Math.round(scale*(i - this.bin_range.min));
+                value = Math.round(scale*(value - this.bin_range.min));
             }
-            if (!colormapArray[i]) {
+            if (!colormapArray[value]) {
                 return;
             }
-            $(bar).css('fill', 'rgb(' + colormapArray[i].join(', ') + ')');
+            $(bar).css('fill', 'rgb(' + colormapArray[value].join(', ') + ')');
         });
     },
 
@@ -145,35 +145,61 @@ var HistogramWidget = View.extend({
             this.renderColormap();
 
             this.$('.h-histogram-bar').each((i, bar) => {
-                if (bar.id >= this._rangeSliderView.bins.min &&
-                    bar.id <= this._rangeSliderView.bins.max) {
+                var value = parseInt($(bar).attr('value'));
+                if (value >= this._rangeSliderView.bins.min &&
+                    value <= this._rangeSliderView.bins.max) {
                     $(bar).addClass('selected');
                 }
-                if (_.contains(this.exclude, i + this.model.get('label'))) {
+                var bin = value + this.model.get('label');
+                if (_.contains(this.exclude, bin)) {
                     $(bar).addClass('exclude');
+                } else {
+                    var opacity = this.opacities[bin] ? this.opacities[bin] : 1;
+                    $(`.h-histogram-bar.foreground[value=${value}]`).css('opacity', opacity);
+                    $(`.h-histogram-bar.opacity[value=${value}]`).attr('y', (1 - opacity)*$(bar).parent()[0].getBBox().height);
                 }
             });
 
-            this.$('.h-histogram-bar').on('click', (e) => {
+            this.$('.h-histogram-bar').contextmenu((e) => {
+                var opacity = 1 - e.offsetY/$(e.target).parent()[0].getBBox().height;
+                var value = parseInt($(e.target).attr('value'));
+                var bin = value + this.model.get('label');
+                this.opacities[bin] = opacity;
+                if (value < this.bin_range.min || value > this.bin_range.max ||
+                        !_.contains(this.exclude, value)) {
+                    $(`.h-histogram-bar.foreground[value=${value}]`).css('opacity', opacity);
+                    $(`.h-histogram-bar.opacity[value=${value}]`).attr('y', e.offsetY);
+
+                    this.trigger('h:opacities', {
+                        opacities: this.opacities.slice(0),
+                        bin: bin,
+                        value: opacity
+                    });
+                }
+                return false;
+            });
+
+            this.$('.h-histogram-bar').click((e) => {
+                var value = $(e.target).attr('value');
                 if (!this.model.get('bitmask') ||
-                    e.target.id < this.bin_range.min ||
-                    e.target.id > this.bin_range.max) {
+                    value < this.bin_range.min || value > this.bin_range.max) {
                      return;
                 }
-                $(e.target).toggleClass('exclude');
-                var value = $(e.target).hasClass('exclude');
-                var bin = parseInt(e.target.id) + this.model.get('label');
-                if (value) {
+                var excluded = $(`.h-histogram-bar[value=${value}]`).toggleClass('exclude').hasClass('exclude');
+                var bin = parseInt(value) + this.model.get('label');
+                if (excluded) {
                     this.exclude.push(bin);
                     this.exclude = _.uniq(this.exclude);
+                    $(`.h-histogram-bar.foreground[value=${value}]`).css('opacity', '');
                 } else {
                     this.exclude = _.without(this.exclude, bin);
+                    $(`.h-histogram-bar.foreground[value=${value}]`).css('opacity', this.opacities[bin]);
                 }
 
                 this.trigger('h:exclude', {
                     exclude: this.exclude,
                     bin: bin,
-                    value: value
+                    value: excluded
                 });
             });
 
@@ -181,7 +207,8 @@ var HistogramWidget = View.extend({
                 this.threshold = evt.range;
                 this.bin_range = evt.bins;
                 this.$('.h-histogram-bar').each((i, bar) => {
-                    if (bar.id >= evt.bins.min && bar.id <= evt.bins.max) {
+                    var value = parseInt($(bar).attr('value'));
+                    if (value >= evt.bins.min && value <= evt.bins.max) {
                         $(bar).addClass('selected');
                     } else {
                         $(bar).removeClass('selected');

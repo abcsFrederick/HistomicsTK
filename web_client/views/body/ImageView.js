@@ -892,6 +892,8 @@ var ImageView = View.extend({
                           'h:redraw', this._redrawOverlay);
             this.listenTo(this.overlayPropertiesWidget,
                           'h:overlayOpacity', this._setOverlayOpacity);
+            this.listenTo(this.overlayPropertiesWidget,
+                          'h:overlayOpacities', this._setOverlayOpacities);
             this.$('.h-overlay-properties-widget').removeClass('hidden');
         }
     },
@@ -920,6 +922,10 @@ var ImageView = View.extend({
 
     _setOverlayOpacity(evt) {
         this.viewerWidget.setOverlayOpacity(evt.index, evt.opacity);
+    },
+
+    _setOverlayOpacities(evt) {
+        this.viewerWidget.setOverlayOpacities(evt.index, evt.opacities);
     },
 
     /*
