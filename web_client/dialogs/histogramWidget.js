@@ -154,7 +154,7 @@ var HistogramWidget = View.extend({
                 if (_.contains(this.exclude, bin)) {
                     $(bar).addClass('exclude');
                 } else {
-                    var opacity = this.opacities[bin] ? this.opacities[bin] : 1;
+                    var opacity = this.opacities[bin] === undefined ? 1 : this.opacities[bin];
                     $(`.h-histogram-bar.foreground[value=${value}]`).css('opacity', opacity);
                     $(`.h-histogram-bar.opacity[value=${value}]`).attr('y', (1 - opacity)*$(bar).parent()[0].getBBox().height);
                 }
