@@ -79,6 +79,7 @@ var OverlayPropertiesWidget = Panel.extend({
          */
         this.listenTo(this.overlay, 'change:opacity', this._setOverlayOpacity);
         this.listenTo(this.overlay, 'change:opacities', this._setOverlayOpacities);
+        this.listenTo(this.overlay, 'change:exclude', this._excludeOverlayBins);
         this.listenTo(this.overlay, 'change:threshold change:offset ' +
                                     'change:label change:invertLabel ' +
                                     'change:flattenLabel change:bitmask ' +
@@ -165,14 +166,12 @@ var OverlayPropertiesWidget = Panel.extend({
             this.overlay.set('threshold', evt.range).save();
         });
 
-        this.listenTo(this._histogramView, 'h:exclude', function (evt) {
-            this.overlay.set('exclude', evt.exclude).save().done(() => {
-                this.trigger('h:redraw', this.overlay);
-            });
-        });
-
         this.listenTo(this._histogramView, 'h:opacities', function (evt) {
             this.overlay.set('opacities', evt.opacities).save();
+        });
+
+        this.listenTo(this._histogramView, 'h:exclude', function (evt) {
+            this.overlay.set('exclude', evt.exclude).save();
         });
     },
 
@@ -201,6 +200,13 @@ var OverlayPropertiesWidget = Panel.extend({
         this.trigger('h:overlayOpacities', {
             index: overlay.get('index'),
             opacities: value
+        });
+    },
+
+    _excludeOverlayBins(overlay, value) {
+        this.trigger('h:overlayExcludeBins', {
+            index: overlay.get('index'),
+            exclude: value
         });
     }
 });

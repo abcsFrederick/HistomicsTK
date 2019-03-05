@@ -894,6 +894,8 @@ var ImageView = View.extend({
                           'h:overlayOpacity', this._setOverlayOpacity);
             this.listenTo(this.overlayPropertiesWidget,
                           'h:overlayOpacities', this._setOverlayOpacities);
+            this.listenTo(this.overlayPropertiesWidget,
+                          'h:overlayExcludeBins', this._excludeOverlayBins);
             this.$('.h-overlay-properties-widget').removeClass('hidden');
         }
     },
@@ -928,6 +930,9 @@ var ImageView = View.extend({
         this.viewerWidget.setOverlayOpacities(evt.index, evt.opacities);
     },
 
+    _excludeOverlayBins(evt) {
+        this.viewerWidget.setOverlayVisibility(evt.index, null, evt.exclude);
+    },
     /*
     _setOverlayDisplayed(evt) {
         this.viewerWidget.setOverlayVisibility(evt.index, evt.displayed);

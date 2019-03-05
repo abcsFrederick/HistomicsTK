@@ -164,17 +164,20 @@ var HistogramWidget = View.extend({
                 var opacity = 1 - e.offsetY/$(e.target).parent()[0].getBBox().height;
                 var value = parseInt($(e.target).attr('value'));
                 var bin = value + this.model.get('label');
-                this.opacities[bin] = opacity;
-                if (value < this.bin_range.min || value > this.bin_range.max ||
-                        !_.contains(this.exclude, value)) {
+                var opacities = this.opacities.slice();
+                opacities[bin] = opacity;
+                if (value >= this.bin_range.min && value <= this.bin_range.max &&
+                        !_.contains(this.exclude, bin)) {
                     $(`.h-histogram-bar.foreground[value=${value}]`).css('opacity', opacity);
                     $(`.h-histogram-bar.opacity[value=${value}]`).attr('y', e.offsetY);
 
                     this.trigger('h:opacities', {
-                        opacities: this.opacities.slice(0),
+                        opacities: opacities,
                         bin: bin,
                         value: opacity
                     });
+
+                    this.opacities = opacities.slice();
                 }
                 return false;
             });
@@ -187,20 +190,23 @@ var HistogramWidget = View.extend({
                 }
                 var excluded = $(`.h-histogram-bar[value=${value}]`).toggleClass('exclude').hasClass('exclude');
                 var bin = parseInt(value) + this.model.get('label');
+                var exclude = this.exclude.slice();
                 if (excluded) {
-                    this.exclude.push(bin);
-                    this.exclude = _.uniq(this.exclude);
+                    exclude.push(bin);
+                    exclude = _.uniq(exclude);
                     $(`.h-histogram-bar.foreground[value=${value}]`).css('opacity', '');
                 } else {
-                    this.exclude = _.without(this.exclude, bin);
+                    exclude = _.without(exclude, bin);
                     $(`.h-histogram-bar.foreground[value=${value}]`).css('opacity', this.opacities[bin]);
                 }
 
                 this.trigger('h:exclude', {
-                    exclude: this.exclude,
+                    exclude: exclude,
                     bin: bin,
                     value: excluded
                 });
+
+                this.exclude = exclude.slice();
             });
 
             this.listenTo(this._rangeSliderView, 'h:range', function (evt) {
