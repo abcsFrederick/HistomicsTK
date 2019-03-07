@@ -42,6 +42,8 @@ var ImageView = View.extend({
         this.selectedAnnotation = new AnnotationModel({_id: 'selected'});
         this.selectedElements = this.selectedAnnotation.elements();
 
+        this._labelTimer;
+
         // Allow zooming this many powers of 2 more than native pixel resolution
         this._increaseZoom2x = 1;
 
@@ -206,10 +208,14 @@ var ImageView = View.extend({
                     // update the coordinate display on mouse move
                     this.viewer.geoOn(geo.event.mousemove, (evt) => {
                         this.showCoordinates(evt);
+                        this.showLabels(evt);
                     });
 
+                    // remove the hidden class from the labels display
+                    this.$('.h-image-labels-container').removeClass('hidden');
                     // remove the hidden class from the coordinates display
                     this.$('.h-image-coordinates-container').removeClass('hidden');
+
 
                     // show the right side control container
                     this.$('#h-annotation-selector-container').removeClass('hidden');
@@ -614,22 +620,35 @@ var ImageView = View.extend({
             this.$('.h-image-coordinates').text(
                 pt.x.toFixed() + ', ' + pt.y.toFixed()
             );
-
-            /*
-            // TODO: get visible or "selected" layer (activeOverlay)
-            var layer = this.viewer.layers()[3];
-            var x = evt.map.x, y = evt.map.y;
-            var opts = { background: false, wait:'idle' };
-            var viewer = this.viewerWidget;
-            this.viewer.screenshot(layer, 'canvas', opts).then(function (canvas) {
-                var d = canvas.getContext('2d').getImageData(x, y, 1, 1).data;
-                viewer.trigger('h:pixel-value', {
-                    x: pt.x, y: pt.y,
-                    r: d[0], g: d[1], b: d[2], a: d[3]
-                });
-            });
-             */
         }
+    },
+
+    showLabels(evt) {
+        clearTimeout(this._labelTimer);
+        this.$('.h-image-labels').text('');
+
+        if (!this.activeOverlay || !this.viewer) {
+            return;
+        }
+
+        this._labelTimer = setTimeout(() => {
+            var x = evt.map.x, y = evt.map.y;
+            var opts = { background: false, wait: 'idle' };
+            var index = this.activeOverlay.get('index');
+            var promise = this.viewerWidget.getOverlayLayerValues(index, null,
+                                                                  x, y);
+            promise.then((values) => {
+                var active = [];
+                _.each(values, (value, i) => {
+                    if (value && value[3]) {
+                        active.push(i);
+                    }
+                });
+                if (active.length && this.overlayPropertiesWidget) {
+                    this.overlayPropertiesWidget.trigger('h:active-overlay-value', { index: index, values: active });
+                }
+            });
+        }, 1000);
     },
 
     mouseOnAnnotation(element, annotationId) {
@@ -896,6 +915,8 @@ var ImageView = View.extend({
                           'h:overlayOpacities', this._setOverlayOpacities);
             this.listenTo(this.overlayPropertiesWidget,
                           'h:overlayExcludeBins', this._excludeOverlayBins);
+            this.listenTo(this.overlayPropertiesWidget,
+                          'h:overlayLabels', this._setOverlayLabels);
             this.$('.h-overlay-properties-widget').removeClass('hidden');
         }
     },
@@ -932,6 +953,12 @@ var ImageView = View.extend({
 
     _excludeOverlayBins(evt) {
         this.viewerWidget.setOverlayVisibility(evt.index, null, evt.exclude);
+    },
+
+    _setOverlayLabels(evt) {
+        this.$('.h-image-labels').text(_.map(evt.labels, (label) => {
+            return label.text;
+        }).join(', '));
     },
     /*
     _setOverlayDisplayed(evt) {

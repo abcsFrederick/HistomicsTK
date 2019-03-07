@@ -94,6 +94,29 @@ var OverlayPropertiesWidget = Panel.extend({
                           this._histogramView.getHistogram();
                           this._histogramView.render();
                       });
+        this.listenTo(this, 'h:active-overlay-value', (evt) => {
+            if (!this._histogramView || !this._histogramView.colormap ||
+                !this._histogramView.model.get('bitmask')) {
+                return;
+            }
+
+            var labels = this._histogramView.colormap.get('labels');
+            if (!labels) {
+                return;
+            }
+
+            var colormap = this._histogramView.colormap.get('colormap');
+
+            this.trigger('h:overlayLabels', {
+                labels: _.map(evt.values, (value) => {
+                            var label = { text: labels[value] };
+                            if (colormap) {
+                                label.color = colormap[value];
+                            }
+                            return label;
+                        })
+            });
+        });
     },
 
     render() {

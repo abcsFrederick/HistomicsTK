@@ -133,6 +133,9 @@ var OverlaySelector = Panel.extend({
      */
     setViewer(viewer) {
         this.viewer = viewer;
+        this.listenTo(this, 'h:active-overlay-value', (evt) => {
+            console.log(evt);
+        });
         /*
         if (this.viewer) {
             this.collection.each((overlay) => {
