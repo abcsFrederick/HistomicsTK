@@ -32,7 +32,8 @@ import '../../stylesheets/body/image.styl';
 var ImageView = View.extend({
     events: {
         'keydown .h-image-body': '_onKeyDown',
-        'keydown .geojs-map': '_handleKeyDown'
+        'keydown .geojs-map': '_handleKeyDown',
+        'click .h-control-panel-container .s-close-panel-group': '_closeAnalysis'
     },
     initialize(settings) {
         this.viewerWidget = null;
@@ -61,7 +62,8 @@ var ImageView = View.extend({
         this.overlays = new OverlayCollection();
 
         this.controlPanel = new SlicerPanelGroup({
-            parentView: this
+            parentView: this,
+            closeButton: true
         });
         this.zoomWidget = new ZoomWidget({
             parentView: this
@@ -162,7 +164,9 @@ var ImageView = View.extend({
                 el: this.$('.h-image-view-container'),
                 itemId: this.model.id,
                 hoverEvents: true,
-                highlightFeatureSizeLimit: 1000,
+                // it is very confusing if this value is smaller than the
+                // AnnotationSelector MAX_ELEMENTS_LIST_LENGTH
+                highlightFeatureSizeLimit: 5000,
                 scale: {position: {bottom: 20, right: 10}}
             });
             this.trigger('h:viewerWidgetCreated', this.viewerWidget);
@@ -425,6 +429,12 @@ var ImageView = View.extend({
                 );
             }
         });
+    },
+
+    _closeAnalysis(evt) {
+        evt.preventDefault();
+        router.setQuery('analysis', null, {trigger: false});
+        this.controlPanel.$el.addClass('hidden');
     },
 
     /**
